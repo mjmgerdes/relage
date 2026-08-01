@@ -590,15 +590,23 @@ h2 { letter-spacing: -.018em; }
 .setup-layout .setup-form { display: block; overflow: hidden; padding: 0; border: 1px solid var(--line); background: var(--surface); }
 .setup-layout .setup-form fieldset {
   scroll-margin-top: 118px;
+  display: flow-root;
   margin: 0;
-  padding: 40px 42px 44px;
+  padding: 26px 42px 32px;
   border: 0;
   border-bottom: 1px solid var(--line);
   border-radius: 0;
   background: transparent;
   box-shadow: none;
 }
-.setup-form legend { margin-bottom: 28px; font-size: 28px; }
+.setup-form legend {
+  float: left;
+  width: 100%;
+  margin: 0 0 20px;
+  font-size: 26px;
+  line-height: 1.2;
+}
+.setup-form legend + * { clear: both; }
 .setup-form legend span { border-radius: 50%; background: transparent; box-shadow: inset 0 0 0 1px var(--line-blue); }
 input, select, textarea { border-color: #c9c4ba; border-radius: 3px; background: #fff; }
 input:focus, select:focus, textarea:focus { border-color: var(--navy); box-shadow: 0 0 0 3px rgba(18,59,93,.08); }
@@ -733,7 +741,8 @@ footer { letter-spacing: .1em; }
   .demo-profile-callout .secondary-button { width: 100%; }
   .setup-section-nav { top: 74px; margin-inline: -2px; }
   .setup-layout .setup-form { padding: 0; }
-  .setup-layout .setup-form fieldset { scroll-margin-top: 142px; padding: 24px 20px 26px; border-radius: var(--radius-md); }
+  .setup-layout .setup-form fieldset { scroll-margin-top: 142px; padding: 22px 20px 24px; border-radius: var(--radius-md); }
+  .setup-form legend { margin-bottom: 18px; font-size: 24px; }
   .rc-entry { padding: 18px 16px; }
   .save-bar { bottom: 78px; align-items: stretch; flex-direction: column; gap: 12px; padding: 16px; }
   .save-bar .save-button { width: 100%; min-width: 0; }
