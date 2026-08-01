@@ -4,15 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Relage — care coordination for older adults</title>
+<link rel="icon" type="image/png" href="static/favicon.png">
 <style>
   :root{
-    --sand:#F4F1E8; --card:#FFFFFF; --ink:#28313D; --muted:#5F6D7E;
-    --line:#E2DDCF;
-    --sage:#2F6B54; --sage-dark:#235140; --sage-soft:#E4EFE9;
-    --clay:#B4552D; --clay-soft:#F9EBE2;
-    --navy:#31435A; --navy-soft:#E9EEF4;
-    --plum:#5B3AA6; --plum-soft:#F1ECFB;
-    --shadow:0 1px 3px rgba(40,49,61,.06);
+    /* Relage brand: navy + sky from the logo (matches Maya's theme) */
+    --sand:#F5F8FC; --card:#FFFFFF; --ink:#1D2433; --muted:#5C6575;
+    --line:#DDE5F0;
+    --sage:#1B3672; --sage-dark:#12264F; --sage-soft:#E4EDF8;
+    --sky:#92C4EA;
+    --clay:#B4552D; --clay-soft:#F9ECE4;
+    --navy:#33556E; --navy-soft:#E8F1FA;
+    --plum:#5B3AA6; --plum-soft:#F1EBFB;
+    --shadow:0 1px 3px rgba(29,36,51,.06);
   }
   *{box-sizing:border-box; margin:0;}
   body{
@@ -27,12 +30,7 @@
     background:var(--card); border-bottom:1px solid var(--line);
     position:sticky; top:0; z-index:30;
   }
-  .logo{
-    width:44px; height:44px; border-radius:12px; background:var(--sage);
-    color:#fff; display:flex; align-items:center; justify-content:center;
-    font-weight:800; font-size:19px; flex-shrink:0; letter-spacing:-.02em;
-  }
-  header h1{font-size:22px; letter-spacing:-.01em;}
+  .lockup{height:44px; display:block;}
   header .sub{color:var(--muted); font-size:14.5px; line-height:1.3;}
   .hbtn{
     margin-left:auto; font-size:14px; padding:9px 13px; border-radius:9px;
@@ -201,9 +199,8 @@
 <body>
 
 <header>
-  <div class="logo">RL</div>
   <div>
-    <h1>Relage</h1>
+    <img src="static/logo-lockup.png" alt="Relage" class="lockup">
     <div class="sub" id="statusHuman">Here to help you get to your care</div>
   </div>
   <button class="hbtn" onclick="resetDemo()">↺ Reset</button>
@@ -370,6 +367,11 @@
       <button class="bigbtn ghost" onclick="showView('today')">Not right now</button>
     </div>
 
+    <div class="card" id="recapReviewCard" style="display:none">
+      <h3 style="font-size:20px">How Relage put this together</h3>
+      <div class="steps" id="stepsReview" style="margin-top:12px"></div>
+    </div>
+
     <div class="card" id="rideIdleCard">
       <p class="lede">No ride to sort out yet. Once you coordinate an appointment, Sarah's answer and your transportation show up here.</p>
     </div>
@@ -387,6 +389,11 @@
     </div>
 
     <div class="card"><div id="timeline"></div></div>
+
+    <div class="card" id="recapDoneCard" style="display:none">
+      <h3 style="font-size:20px">How Relage put this together</h3>
+      <div class="steps" id="stepsDone" style="margin-top:12px"></div>
+    </div>
   </section>
 
 </main>
@@ -762,16 +769,27 @@ function renderRide(){
 
   // Review + confirm — the only path to CONFIRMED.
   const review = document.getElementById('reviewCard');
-  if(s === 'AWAITING_USER_CONFIRMATION' && state.appointment && state.transport){
+  const showReview = s === 'AWAITING_USER_CONFIRMATION' && state.appointment && state.transport;
+  if(showReview){
     review.style.display = 'block';
     document.getElementById('planRows').innerHTML = planRowsHtml();
     if(state.plan_explanation){
       document.getElementById('whyBox').style.display = 'block';
       document.getElementById('whyText').textContent = state.plan_explanation;
     }
+    document.getElementById('stepsReview').innerHTML = stepsRecapHtml();
   } else review.style.display = 'none';
+  document.getElementById('recapReviewCard').style.display = showReview ? 'block' : 'none';
 
   renderPhone();
+}
+
+// Persistent recap of everything the agent did — stays readable after the
+// Coordinate screen has moved on.
+function stepsRecapHtml(){
+  return (state?.activity || []).filter(a => a.friendly).map(a =>
+    `<div class="step"><span class="ico">✅</span><span>${esc(a.friendly)}</span></div>`
+  ).join('');
 }
 
 function planRowsHtml(){
@@ -807,10 +825,12 @@ async function refreshCalendar(){
 
   const done = state?.status === 'CONFIRMED';
   document.getElementById('confirmedBanner').style.display = done ? 'block' : 'none';
+  document.getElementById('recapDoneCard').style.display = done ? 'block' : 'none';
   if(done){
     document.getElementById('doneGreet').textContent = `You're all set, ${patFirst()}! 🎉`;
     document.getElementById('doneNote').textContent =
       `Your appointment and your ride are booked. We sent you and ${cgFirst()} a confirmation.`;
+    document.getElementById('stepsDone').innerHTML = stepsRecapHtml();
   }
 }
 

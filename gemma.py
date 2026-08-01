@@ -43,6 +43,15 @@ OLLAMA_URL = "http://localhost:11434/api/chat"
 MODEL_FAST = os.environ.get("GEMMA_FAST", "gemma3:4b")
 MODEL_DEEP = os.environ.get("GEMMA_DEEP", "gemma4:latest")
 
+# Hosted fallback: when Ollama isn't reachable (e.g. the public cloud demo),
+# the same five subtasks run against Google AI Studio's Gemma serving
+# (Gemini API, gemma models, free tier). On-device stays the default and the
+# privacy story: the fallback exists so the hosted demo runs real Gemma too.
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.environ.get("GEMINI_GEMMA_MODEL", "gemma-3-27b-it")
+GEMINI_URL = ("https://generativelanguage.googleapis.com/v1beta/models/"
+              f"{GEMINI_MODEL}:generateContent")
+
 # Metadata of the most recent call: {"model", "ms", "task"} — surfaced in the
 # technical activity feed so judges can see the routing live.
 last_meta = {}
@@ -56,8 +65,32 @@ SYSTEM = (
 )
 
 
+def _ollama_available() -> bool:
+    try:
+        urllib.request.urlopen("http://localhost:11434/api/tags", timeout=2)
+        return True
+    except Exception:
+        return False
+
+
+_OLLAMA_UP = None  # probed once at first call
+
+
 def _chat(prompt: str, model: str, task: str, timeout: int = 90) -> dict:
-    """One JSON-constrained chat request to a local Gemma via Ollama."""
+    """One JSON-constrained request to Gemma — local Ollama when available,
+    otherwise AI-Studio-served Gemma."""
+    global _OLLAMA_UP
+    if _OLLAMA_UP is None:
+        _OLLAMA_UP = _ollama_available()
+    if _OLLAMA_UP:
+        return _chat_ollama(prompt, model, task, timeout)
+    if GEMINI_API_KEY:
+        return _chat_gemini(prompt, task, timeout)
+    raise RuntimeError("No Gemma backend: Ollama unreachable and no "
+                       "GEMINI_API_KEY set")
+
+
+def _chat_ollama(prompt: str, model: str, task: str, timeout: int) -> dict:
     global last_meta
     body = json.dumps({
         "model": model,
@@ -81,9 +114,37 @@ def _chat(prompt: str, model: str, task: str, timeout: int = 90) -> dict:
     return json.loads(data["message"]["content"])
 
 
+def _chat_gemini(prompt: str, task: str, timeout: int) -> dict:
+    """Gemma served by Google AI Studio (Gemini API). Gemma models there
+    don't support JSON mode, so the schema is prompt-enforced and the reply
+    is fence-stripped before parsing."""
+    global last_meta
+    body = json.dumps({
+        "contents": [{"parts": [{"text": f"{SYSTEM}\n\n{prompt}\n\n"
+                                         "Reply with ONLY the JSON object, "
+                                         "no code fences, no prose."}]}],
+        "generationConfig": {"temperature": 0.1},
+    }).encode()
+    req = urllib.request.Request(
+        f"{GEMINI_URL}?key={GEMINI_API_KEY}", data=body,
+        headers={"Content-Type": "application/json"})
+    t0 = time.time()
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        data = json.load(resp)
+    text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+    if text.startswith("```"):
+        text = text.split("```")[1]
+        text = text[4:] if text.startswith("json") else text
+    last_meta = {"model": f"{GEMINI_MODEL} (AI Studio)",
+                 "ms": int((time.time() - t0) * 1000), "task": task}
+    return json.loads(text.strip())
+
+
 def warm_up():
     """Load both models into memory (background) so the first real call has
     no cold-start. keep_alive holds them resident for the demo."""
+    if not _ollama_available():
+        return  # hosted-API fallback needs no warm-up
     def _load(model):
         try:
             _chat('Respond with JSON: {"ok": true}', model, f"warmup:{model}",

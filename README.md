@@ -1,92 +1,123 @@
 # Relage
 
 **An on-device care coordination agent for older adults — powered by Gemma.**
+*(Relage = relay + age)*
 
-> Eleanor is 78 and lives 34 miles from her cardiologist. Finding an appointment
-> is only the beginning: someone must check that the provider accepts her
-> insurance, coordinate a time, find out whether her daughter can drive her,
-> find accessible transportation if she cannot, and make sure everyone
-> remembers the plan. Relage handles that logistical work — the journey
-> from "care is due" to "Eleanor gets through the door."
+> Eleanor is 78 and lives 34 miles from her cardiologist. Finding an
+> appointment is only the beginning: someone must check that the provider
+> accepts her insurance, coordinate a time, find out whether her daughter can
+> drive her, find walker-accessible transportation when she can't, and make
+> sure everyone remembers the plan. Relage handles that logistical work — the
+> journey from "care is due" to "Eleanor gets through the door."
 
 Built in one day for **Build with Gemma NYC: On-Device AI for Healthcare**
 (Track: Agentic Care Copilots).
 
-Relage is decision-support for care **logistics only** — appointments,
-rides, caregivers, reminders. It never diagnoses, never recommends medical
-care, and uses only synthetic data.
+🔗 **Live demo (hosted replay):** https://mjmgerdes.github.io/relage/
+📄 **Kaggle writeup:** `WRITEUP.md`
 
-## What it does
+Relage is decision-support for care **logistics only** — appointments, rides,
+caregivers, reminders. It never diagnoses, never recommends medical care, and
+uses only synthetic data.
 
-One complete workflow for one synthetic patient:
+---
 
-1. **Today** — a "Cardiology follow-up due" card appears because Eleanor
+## How we use Gemma (the interesting part)
+
+All inference runs **locally via Ollama**. The patient's full profile and all
+planning logic stay on-device; external services receive only the minimum
+fields needed for an action the patient approved.
+
+We decompose care coordination into five subtasks and **route each to the
+smallest Gemma that does it well** (`gemma.py`):
+
+| # | Subtask | Model | Why | Measured |
+|---|---------|-------|-----|----------|
+| 1 | Onboarding interpretation — free text → structured preferences | **gemma3 4B** | constrained JSON extraction, interactive latency | ~1.9 s |
+| 2 | Action planning — choose the next tool from the state machine's legal transitions | **gemma4 8B** | reasoning over state + options | ~10 s (background) |
+| 3 | Response interpretation — caregiver's typed or *spoken* reply → `can_drive` / `partial` / `constraint` | **gemma3 4B** | latency-critical: runs right after the caregiver answers | ~3 s |
+| 4 | Constraint-aware replanning — pick fallback transport given walker + 34 miles | **gemma4 8B** | multi-option tradeoff | ~12 s (background) |
+| 5 | Patient explanation — why this plan fits her preferences | **gemma4 8B** | warm, plain prose | ~10 s (background) |
+
+Engineering around the models:
+
+- **State machine is the spine, Gemma is the brain.** Every output is
+  JSON-constrained (Ollama `format: json`, temp 0.1) and validated against the
+  current state's set of legal tools. Invalid output falls back to
+  deterministic logic — the loop can never stall or take an illegal action.
+- **Pre-warmed, kept resident.** Both tiers load at server startup with
+  `keep_alive`, so the first live inference has no cold-start.
+- **Visible routing.** The technical activity feed stamps every inference
+  with its model and latency (e.g. `[gemma3:4b 3.1s]`) — you can watch the
+  routing happen during the demo.
+- **Human confirmation gate.** Nothing books until the patient approves the
+  complete plan.
+
+## The demo flow
+
+One complete story for one synthetic patient:
+
+1. **Home** — "Cardiology follow-up — time to book" exists because Eleanor
    entered a 6-month recurring plan (the app never infers medical need).
-2. **Coordinate** — Gemma plans tool calls inside a state machine: find an
-   in-network provider, match a morning slot, tentatively hold it.
-3. **Ride** — the appointment is 34 miles away, so Relage texts Eleanor's
-   daughter Sarah. Gemma interprets her free-text reply ("I have work meetings
-   all day Tuesday, sorry") into structured availability.
-4. **Replan** — Sarah can't drive, so Gemma selects a walker-accessible
-   transport option and explains the complete plan in plain language.
-5. **Confirm** — nothing books until Eleanor approves. Then the care timeline
-   updates and confirmations go out.
+   One button: *"Yes, help me book it."*
+2. **Agent works** — Gemma plans tool calls inside the state machine: find an
+   in-network provider, match a morning slot, hold it. Plain-language
+   progress for Eleanor; full tool/model telemetry in the demo drawer.
+3. **Real phone call** — the appointment is 34 miles away. Relage **calls the
+   caregiver's actual phone** (Twilio Voice + ElevenLabs TTS), asks whether
+   she can drive, and transcribes the spoken answer.
+4. **Adapt** — "No, I can't — I've work that day" → gemma3 4B interprets the
+   transcript → gemma4 8B replans to a walker-accessible medical van and
+   explains the plan in plain language.
+5. **Confirm** — Eleanor reviews and approves; the care timeline updates
+   (8:55 AM pickup → 10:30 AM appointment → 12:15 PM return) and
+   confirmations go out.
 
-## How Gemma is used
-
-All inference runs **locally via Ollama** (`gemma4:latest`) — the patient
-profile never leaves the device. Gemma is central in five places
-(see `gemma.py`):
-
-| # | Role | Function |
-|---|------|----------|
-| 1 | Onboarding interpretation | free text → structured preferences |
-| 2 | Action planning | chooses the next tool within state-machine rails |
-| 3 | Response interpretation | caregiver SMS → structured availability |
-| 4 | Constraint-aware replanning | picks fallback transport given mobility needs |
-| 5 | Patient explanation | plain-language "why this plan fits you" |
-
-Every Gemma output is JSON-constrained and validated; invalid output falls
-back to deterministic logic so the coordination never stalls.
+If the caregiver doesn't pick up, Relage **auto-redials** (up to 3 attempts).
+An in-app phone simulator covers the SMS path with zero external
+dependencies — the same `/caregiver-response` endpoint accepts Twilio's real
+inbound webhook unchanged.
 
 ## Architecture
 
 ```
-On-device Gemma (Ollama)
-     ├── interprets onboarding
-     ├── plans next tool call
-     ├── interprets SMS replies
-     └── explains the final plan
-     ▼
-Care coordination state machine (server.py)
+On-device Gemma (Ollama, JSON-constrained, two tiers)
+   gemma3 4B — fast structured extraction     gemma4 8B — planning/explanation
+        ▼
+Care coordination state machine (FastAPI, server.py)
   NEEDS_APPOINTMENT → APPOINTMENT_HELD → TRANSPORT_NEEDED
   → CAREGIVER_CONTACTED → CAREGIVER_UNAVAILABLE → TRANSPORT_FOUND
   → AWAITING_USER_CONFIRMATION → CONFIRMED
-     ▼
+        ▼
 Deterministic tools (tools.py) over synthetic datasets (data/)
-  search_providers · check_availability · hold_appointment
-  check_transport · reserve_transport · send_sms · create_calendar_event
+  search_providers · check_availability · hold_appointment · check_transport
+  reserve_transport · send_sms · place_call · eleven_tts · calendar
+        ▼
+Channels: elder-first web UI · Twilio Voice (ElevenLabs TTS, speech gather,
+auto-redial) · SMS webhook (simulator in demo; real Twilio-compatible)
 ```
 
-The state machine passes Gemma only the tools that are valid transitions from
-the current state, validates every choice, and requires explicit patient
-confirmation before anything is finalized.
+**Adaptive coordination:** a transparent preference score (Sarah accepted 1
+of 4 past ride requests; accessible transport 3 of 3) shifts coordination
+order — Relage still asks Sarah first per Eleanor's stored preference, but
+lines up the fallback in advance. No "we trained a model" claims; the
+reasoning is shown to the user.
 
-**Adaptive coordination:** a transparent preference score (Sarah has accepted
-1 of 4 past ride requests) shifts the coordination order — Relage lines up
-accessible transport as a fallback while still asking Sarah first, keeping the
-user in control.
+**Privacy model:** profile + planning stay on-device. Outbound messages and
+calls contain only appointment time and place — never history, medications,
+or insurance details.
 
-**Privacy model:** the full care profile and all planning logic stay
-on-device. Outbound messages contain only the minimum needed for the approved
-action — appointment time and place, never history, medications, or insurance
-details.
+**Elder-first UI:** 22px+ type, one action per screen, plain language
+("Holding that time for you — nothing is booked until you say OK"), two-item
+navigation. All technical surfaces (caregiver phone simulator, agent
+telemetry, reset) live in a demo drawer. A caregiver Setup screen edits the
+full profile and includes a free-text box Gemma structures on the spot.
 
 ## Run it
 
 ```bash
-# 1. Local Gemma via Ollama
-ollama pull gemma4        # or edit MODEL in gemma.py (gemma3:4b also works)
+# 1. Local Gemma via Ollama (both tiers)
+ollama pull gemma4 && ollama pull gemma3:4b
 ollama serve
 
 # 2. Server
@@ -96,25 +127,38 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 # 3. Open http://localhost:8787
 ```
 
-Demo flow: **Today → Coordinate appointment**, watch the agent feed, reply as
-Sarah in the phone simulator ("NO, I have work meetings all day Tuesday"),
-review the plan, **Confirm appointment and ride**, then check the Care
-Calendar. `POST /reset` resets between runs.
+Optional real telephony (`.env`, see `.env.example`): `TWILIO_*` credentials,
+`CAREGIVER_PHONE`, `BASE_URL` (an `ngrok http 8787` tunnel for the
+speech-gather and status webhooks), `ELEVENLABS_API_KEY` for the natural
+voice. Without any of it, the in-app simulator carries the whole flow.
 
-SMS is simulated in-app by default so the demo has no external dependency.
-Setting `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM`, and
-`CAREGIVER_PHONE` sends real texts, and a Twilio inbound webhook can point at
-the same `/caregiver-response` endpoint the simulator uses.
+Note: SMS from unregistered US local numbers is carrier-blocked (A2P 10DLC),
+which is why the real-device channel is voice — see `WRITEUP.md`.
+
+Between demo runs: demo drawer → *Reset demo* (or `POST /reset`).
+
+## Repository map
+
+```
+server.py        state machine, agent workers, voice/SMS webhooks, API
+gemma.py         two-tier Gemma routing, prompts, warm-up, telemetry
+tools.py         deterministic tools: providers, transport, SMS, calls, TTS
+data/            synthetic patient, provider, and transport datasets
+static/          elder-first single-page UI (+ generated TTS cache)
+docs/            GitHub Pages build — same UI with a recorded-run replay shim
+WRITEUP.md       Kaggle writeup
+```
 
 ## Roadmap
 
-The same coordination engine extends to preventive-care planning, provider
-discovery, and post-discharge prescription pickup (pharmacy confirmation +
-caregiver or transport coordination) — each is another tool set behind the
-same Gemma planner and confirmation gate.
+The same planner-plus-state-machine engine extends directly: preventive-care
+planning, provider discovery, and post-discharge prescription pickup
+(medication extraction → pharmacy readiness → the same caregiver/transport
+loop). Each is a new tool set behind the same Gemma planner and the same
+patient confirmation gate.
 
 ## Safety scope
 
-- Decision-support for logistics only; no diagnosis, no treatment, no
-  care recommendations inferred from age or history.
-- Synthetic data only (`data/`); no real patient data anywhere.
+- Decision-support for logistics only; no diagnosis, no treatment, no care
+  recommendations inferred from age or history.
+- Synthetic or public data only; no real patient data anywhere.

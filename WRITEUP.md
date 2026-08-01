@@ -110,18 +110,24 @@ activity feed shows this reasoning to the user.
 
 ### The demo
 
-Five screens: **Profile** (prepopulated onboarding, plus a live "interpret my
-preference" Gemma box), **Today** (the due-care card), **Coordinate** (agent
-activity feed showing every Gemma plan and tool call), **Ride** (caregiver
-outreach → decline → accessible fallback → plan review), and **Care
-Calendar** (a chronological care timeline: 8:55 AM pickup, 10:30 AM
-appointment, 12:15 PM return pickup, and the next auto-coordinated follow-up
-window in February).
+The UI is **elder-first**: 22px+ type, one action per screen, plain language
+("Holding that time for you — nothing is booked until you say OK"), and a
+two-item navigation an 78-year-old can actually use. Home shows one due-care
+card with one button; progress renders as a friendly checklist; the plan
+review is three icon rows and a big "Yes, book everything." Everything
+technical — the caregiver phone simulator, per-inference model/latency
+telemetry, reset — lives in a collapsible demo drawer. A caregiver Setup
+screen edits the full profile, with a free-text box Gemma structures live.
+The care timeline shows the whole day: 8:55 AM pickup, 10:30 AM appointment,
+12:15 PM return, and the next auto-coordinated follow-up window in February.
 
-The judge-facing moment: press "Coordinate appointment," watch Gemma plan
-tool calls live, reply as Sarah with a natural-language decline, and watch
-the agent interpret it, replan around a walker and 34 miles, and present a
-complete plan that Eleanor — always — confirms herself.
+The judge-facing moment: Eleanor taps "Yes, help me book it," Gemma plans
+tool calls live — then a **real phone rings**. The caregiver answers, hears
+the ElevenLabs voice ask about the ride, and says "No, I can't — I've work
+that day." The transcript hits gemma3 4B, the decline is understood, gemma4
+8B replans around a walker and 34 miles, and a complete plan appears that
+Eleanor — always — confirms herself. (No pickup? Relage auto-redials, up to
+three attempts.)
 
 ### Challenges in the one-day sprint
 
