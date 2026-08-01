@@ -3,549 +3,860 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Relage</title>
+<title>Relage — care coordination for older adults</title>
 <style>
-  :root {
-    --bg: #faf8f3; --card: #ffffff; --ink: #26262e; --muted: #5f5f6a;
-    --accent: #1f6f5c; --accent-dark: #175346; --accent-soft: #e3f0ec;
-    --warn: #b4552d; --warn-soft: #f9ece4; --line: #e3dfd4;
-    --blue: #33556e; --blue-soft: #e8eff5; --purple: #5b3aa6; --purple-soft: #f1ebfb;
+  :root{
+    --sand:#F4F1E8; --card:#FFFFFF; --ink:#28313D; --muted:#5F6D7E;
+    --line:#E2DDCF;
+    --sage:#2F6B54; --sage-dark:#235140; --sage-soft:#E4EFE9;
+    --clay:#B4552D; --clay-soft:#F9EBE2;
+    --navy:#31435A; --navy-soft:#E9EEF4;
+    --plum:#5B3AA6; --plum-soft:#F1ECFB;
+    --shadow:0 1px 3px rgba(40,49,61,.06);
   }
-  * { box-sizing: border-box; margin: 0; }
-  body {
-    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg); color: var(--ink);
-    font-size: 22px; line-height: 1.55;
+  *{box-sizing:border-box; margin:0;}
+  body{
+    font-family:-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:var(--sand); color:var(--ink);
+    font-size:20px; line-height:1.55; padding-bottom:104px;
   }
-  header {
-    display: flex; align-items: center; gap: 14px;
-    padding: 16px 22px; background: var(--card); border-bottom: 1px solid var(--line);
+
+  /* ---------- header ---------- */
+  header{
+    display:flex; align-items:center; gap:13px; padding:14px 20px;
+    background:var(--card); border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:30;
   }
-  header .logo {
-    width: 46px; height: 46px; border-radius: 13px; background: var(--accent);
-    color: #fff; display: flex; align-items: center; justify-content: center;
-    font-weight: 800; font-size: 21px; flex-shrink: 0;
+  .logo{
+    width:44px; height:44px; border-radius:12px; background:var(--sage);
+    color:#fff; display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:19px; flex-shrink:0; letter-spacing:-.02em;
   }
-  header h1 { font-size: 24px; }
-  header .sub { color: var(--muted); font-size: 15px; }
-  .hbtns { margin-left: auto; display: flex; gap: 10px; }
-  .hbtn {
-    font-size: 15px; padding: 9px 14px; border-radius: 10px; cursor: pointer;
-    background: var(--card); border: 1px solid var(--line); color: var(--muted);
+  header h1{font-size:22px; letter-spacing:-.01em;}
+  header .sub{color:var(--muted); font-size:14.5px; line-height:1.3;}
+  .hbtn{
+    margin-left:auto; font-size:14px; padding:9px 13px; border-radius:9px;
+    background:var(--card); border:1px solid var(--line); color:var(--muted);
+    cursor:pointer; flex-shrink:0;
   }
-  main { max-width: 700px; margin: 0 auto; padding: 26px 20px 120px; }
-  .view { display: none; }
-  .view.active { display: block; }
-  .greeting { font-size: 30px; font-weight: 800; margin-bottom: 4px; }
-  .subgreet { color: var(--muted); font-size: 20px; margin-bottom: 22px; }
-  .card {
-    background: var(--card); border: 1px solid var(--line);
-    border-radius: 18px; padding: 26px; margin-bottom: 18px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  .hbtn:hover{background:var(--sand);}
+
+  main{max-width:720px; margin:0 auto; padding:22px 18px 40px;}
+  .view{display:none;} .view.active{display:block;}
+
+  h2.screen{font-size:27px; font-weight:800; letter-spacing:-.02em; margin-bottom:3px;}
+  .screensub{color:var(--muted); font-size:18px; margin-bottom:20px;}
+
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:17px;
+    padding:22px; margin-bottom:16px; box-shadow:var(--shadow);
   }
-  .card h2 { font-size: 26px; margin-bottom: 10px; }
-  .bigbtn {
-    display: block; width: 100%; font-size: 24px; font-weight: 800;
-    padding: 20px; border-radius: 16px; border: none; cursor: pointer;
-    background: var(--accent); color: #fff; margin-top: 18px;
+  .card h3{font-size:22px; margin-bottom:8px; letter-spacing:-.01em;}
+  .card .lede{color:var(--muted); font-size:17.5px;}
+
+  .bigbtn{
+    display:block; width:100%; font-size:21px; font-weight:800; padding:18px;
+    border-radius:14px; border:none; cursor:pointer; background:var(--sage);
+    color:#fff; margin-top:16px; letter-spacing:-.01em; font-family:inherit;
   }
-  .bigbtn:active { background: var(--accent-dark); }
-  .bigbtn.gray { background: var(--card); color: var(--muted); border: 2px solid var(--line); font-weight: 600; }
-  .bigbtn:disabled { opacity: .5; }
-  .plain { color: var(--muted); font-size: 19px; }
-  .steps { display: flex; flex-direction: column; gap: 16px; margin-top: 8px; }
-  .step { display: flex; gap: 14px; align-items: flex-start; font-size: 21px; }
-  .step .ico { font-size: 24px; width: 34px; flex-shrink: 0; text-align: center; }
-  .spinner {
-    display: inline-block; width: 22px; height: 22px; border: 3px solid var(--line);
-    border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite;
+  .bigbtn:hover{background:var(--sage-dark);}
+  .bigbtn:disabled{opacity:.45; cursor:default;}
+  .bigbtn.ghost{background:var(--card); color:var(--muted); border:2px solid var(--line); font-weight:700;}
+  .bigbtn.ghost:hover{background:var(--sand);}
+  .bigbtn.clay{background:var(--clay);} .bigbtn.clay:hover{background:#96431f;}
+
+  .pill{
+    display:inline-block; font-size:13px; font-weight:800; letter-spacing:.05em;
+    text-transform:uppercase; padding:5px 11px; border-radius:100px;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .planrow { display: flex; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--line); align-items: flex-start; }
-  .planrow:last-child { border-bottom: none; }
-  .planrow .ico { font-size: 30px; width: 44px; flex-shrink: 0; text-align: center; }
-  .planrow b { font-size: 22px; }
-  .planrow .det { color: var(--muted); font-size: 19px; }
-  .why {
-    background: var(--purple-soft); border-radius: 14px; padding: 18px 20px;
-    font-size: 20px; margin-top: 16px;
+  .pill.due{background:var(--clay-soft); color:var(--clay);}
+  .pill.live{background:var(--sage-soft); color:var(--sage);}
+  .pill.wait{background:var(--navy-soft); color:var(--navy);}
+
+  /* ---------- key/value rows ---------- */
+  .kv{display:flex; justify-content:space-between; gap:16px; padding:11px 0; border-bottom:1px solid var(--line); font-size:18px;}
+  .kv:last-child{border-bottom:none;}
+  .kv .k{color:var(--muted); flex-shrink:0;}
+  .kv .v{font-weight:700; text-align:right;}
+
+  /* ---------- plan rows ---------- */
+  .planrow{display:flex; gap:15px; padding:15px 0; border-bottom:1px solid var(--line); align-items:flex-start;}
+  .planrow:last-child{border-bottom:none;}
+  .planrow .ico{font-size:28px; width:42px; flex-shrink:0; text-align:center; line-height:1.2;}
+  .planrow b{font-size:20px;}
+  .planrow .det{color:var(--muted); font-size:17px;}
+
+  /* ---------- agent progress ---------- */
+  .steps{display:flex; flex-direction:column; gap:14px;}
+  .step{display:flex; gap:13px; align-items:flex-start; font-size:19px;}
+  .step .ico{font-size:21px; width:30px; flex-shrink:0; text-align:center;}
+  .spinner{
+    display:inline-block; width:19px; height:19px; border:3px solid var(--line);
+    border-top-color:var(--sage); border-radius:50%; animation:spin .8s linear infinite;
+    vertical-align:-3px;
   }
-  .why .lbl { font-size: 14px; font-weight: 800; color: var(--purple); letter-spacing: .04em; margin-bottom: 6px; }
-  .timeline .ev { display: flex; gap: 18px; padding: 16px 0; border-bottom: 1px solid var(--line); }
-  .timeline .ev:last-child { border-bottom: none; }
-  .timeline .date { width: 86px; flex-shrink: 0; font-weight: 800; color: var(--accent); font-size: 20px; }
-  .timeline .past .date { color: var(--muted); }
-  .timeline .meta { color: var(--muted); font-size: 17px; }
-  .bottomnav {
-    position: fixed; bottom: 0; left: 0; right: 0; display: flex;
-    background: var(--card); border-top: 1px solid var(--line); z-index: 40;
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* ---------- technical feed ---------- */
+  details.tech summary{
+    cursor:pointer; font-size:15px; color:var(--muted); font-weight:700;
+    padding:4px 0; list-style:none; user-select:none;
   }
-  .bottomnav button {
-    flex: 1; font-size: 19px; font-weight: 700; padding: 16px 8px 20px;
-    background: none; border: none; color: var(--muted); cursor: pointer;
+  details.tech summary::-webkit-details-marker{display:none;}
+  details.tech summary::before{content:"▸ ";}
+  details.tech[open] summary::before{content:"▾ ";}
+  .techfeed{display:flex; flex-direction:column; gap:5px; margin-top:10px;}
+  .tf{
+    font-size:13.5px; line-height:1.45; background:#1F242C; color:#D6DBE2;
+    border-radius:8px; padding:8px 11px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
   }
-  .bottomnav button.active { color: var(--accent); }
-  .bottomnav .nico { display: block; font-size: 26px; margin-bottom: 2px; }
-  /* setup form */
-  .fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
-  .fgrid .full { grid-column: 1 / -1; }
-  label { display: block; font-size: 16px; font-weight: 700; color: var(--muted); margin-bottom: 5px; }
-  input, select {
-    width: 100%; font-size: 19px; padding: 12px 14px; border-radius: 10px;
-    border: 1px solid var(--line); background: #fff; color: var(--ink);
+  .tf .k{font-weight:800; text-transform:uppercase; font-size:10.5px; margin-right:7px; letter-spacing:.06em;}
+  .k.gemma{color:#B79AF0;} .k.tool{color:#7FB2DD;} .k.state{color:#7FD0B2;}
+  .k.sms{color:#E6CD76;} .k.adapt{color:#E68AB8;} .k.call{color:#7FD8DD;} .k.error{color:#E6907A;}
+  .meta{color:#8A93A0; font-size:11.5px; margin-left:5px; white-space:nowrap;}
+
+  /* ---------- phone simulator ---------- */
+  .phone{background:#1F242C; border-radius:16px; padding:15px; margin-top:4px;}
+  .phone .ph-head{color:#8A93A0; font-size:13.5px; font-weight:700; margin-bottom:11px; display:flex; align-items:center; gap:7px;}
+  .msgs{display:flex; flex-direction:column; gap:8px; max-height:290px; overflow-y:auto; padding:2px;}
+  .bubble{max-width:86%; padding:10px 13px; border-radius:15px; font-size:15px; line-height:1.45;}
+  .bubble.in{background:#333A44; color:#E4E8ED; align-self:flex-start; border-bottom-left-radius:4px;}
+  .bubble.out{background:#2E7DD1; color:#fff; align-self:flex-end; border-bottom-right-radius:4px;}
+  .bubble.voice{background:#2F6B54; color:#fff; align-self:flex-end; border-bottom-right-radius:4px;}
+  .bubble .who{font-size:11px; opacity:.72; margin-bottom:3px; font-weight:700;}
+  .reply{display:flex; gap:8px; margin-top:11px;}
+  .reply input{
+    flex:1; background:#2A303A; border:1px solid #3A424E; color:#E4E8ED;
+    border-radius:100px; font-size:15px; padding:11px 15px; font-family:inherit; min-width:0;
   }
-  .checkrow { display: flex; gap: 16px; flex-wrap: wrap; font-size: 18px; }
-  .checkrow label { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 600; color: var(--ink); }
-  .checkrow input { width: 22px; height: 22px; }
-  .notice { background: var(--warn-soft); color: var(--warn); border-radius: 12px; padding: 14px 16px; font-size: 17px; margin-top: 14px; }
-  .notice.good { background: var(--accent-soft); color: var(--accent); }
-  /* demo drawer */
-  .drawer {
-    position: fixed; top: 0; right: -390px; width: 380px; height: 100vh;
-    background: #1c1c22; color: #eee; z-index: 60; transition: right .25s ease;
-    padding: 18px 16px; overflow-y: auto; font-size: 15px;
+  .reply button{background:#2E7DD1; border:none; color:#fff; border-radius:100px; width:44px; height:44px; font-size:17px; cursor:pointer; flex-shrink:0;}
+  .quick{display:flex; gap:6px; margin-top:9px; flex-wrap:wrap;}
+  .quick button{
+    background:#2A303A; color:#C3CAD3; border:1px solid #3A424E; border-radius:100px;
+    font-size:13px; padding:7px 12px; cursor:pointer; font-family:inherit;
   }
-  .drawer.open { right: 0; box-shadow: -8px 0 30px rgba(0,0,0,.35); }
-  .drawer h3 { font-size: 16px; color: #bbb; margin: 14px 0 8px; }
-  .drawer .close { float: right; background: none; border: none; color: #888; font-size: 22px; cursor: pointer; }
-  .msgs { display: flex; flex-direction: column; gap: 8px; padding: 4px; max-height: 300px; overflow-y: auto; }
-  .bubble { max-width: 88%; padding: 9px 13px; border-radius: 16px; font-size: 14px; line-height: 1.4; }
-  .bubble.in { background: #34343c; align-self: flex-start; }
-  .bubble.out { background: #2e7dd1; align-self: flex-end; }
-  .bubble .who { font-size: 11px; color: #999; margin-bottom: 3px; }
-  .reply { display: flex; gap: 8px; margin-top: 10px; }
-  .reply input { background: #2a2a31; border: none; color: #eee; border-radius: 999px; font-size: 14px; padding: 10px 14px; }
-  .reply button { background: #2e7dd1; border: none; color: #fff; border-radius: 999px; width: 40px; height: 40px; font-size: 16px; cursor: pointer; }
-  .quick { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-  .quick button { background: #2a2a31; color: #ccc; border: 1px solid #3a3a44; border-radius: 999px; font-size: 12px; padding: 5px 10px; cursor: pointer; }
-  .techfeed { display: flex; flex-direction: column; gap: 6px; }
-  .tf { font-size: 12.5px; background: #23232a; border-radius: 8px; padding: 7px 10px; color: #ccc; }
-  .tf .k { font-weight: 800; text-transform: uppercase; font-size: 10px; margin-right: 6px; }
-  .k.gemma { color: #b79af0; } .k.tool { color: #7fb2dd; } .k.state { color: #7fd0b2; }
-  .k.sms { color: #e6cd76; } .k.adapt { color: #e68ab8; } .k.error { color: #e6907a; }
-  .twstatus { font-size: 13px; padding: 8px 10px; border-radius: 8px; background: #23232a; margin-top: 8px; }
-  .drawer .rbtn { width: 100%; margin-top: 12px; background: #2a2a31; color: #ccc; border: 1px solid #3a3a44; border-radius: 8px; padding: 9px; font-size: 14px; cursor: pointer; }
-  footer { text-align: center; color: var(--muted); font-size: 13px; padding: 14px 14px 110px; }
+  .quick button:hover{background:#333A44;}
+
+  /* ---------- timeline ---------- */
+  .ev{display:flex; gap:16px; padding:15px 0; border-bottom:1px solid var(--line);}
+  .ev:last-child{border-bottom:none;}
+  .ev .date{width:78px; flex-shrink:0; font-weight:800; color:var(--sage); font-size:17px; letter-spacing:.02em;}
+  .ev.past .date{color:var(--muted);}
+  .ev.future .date{color:var(--plum);}
+  .ev b{font-size:18.5px; font-weight:700;}
+  .ev .meta2{color:var(--muted); font-size:15.5px; text-transform:capitalize;}
+
+  /* ---------- callouts ---------- */
+  .why{background:var(--plum-soft); border-radius:13px; padding:16px 18px; font-size:18px; margin-top:14px;}
+  .why .lbl{font-size:12.5px; font-weight:800; color:var(--plum); letter-spacing:.06em; margin-bottom:5px;}
+  .note{border-radius:12px; padding:13px 16px; font-size:16px; margin-top:13px; line-height:1.45;}
+  .note.good{background:var(--sage-soft); color:var(--sage-dark);}
+  .note.warn{background:var(--clay-soft); color:var(--clay);}
+  .note.info{background:var(--navy-soft); color:var(--navy);}
+
+  .share{display:grid; grid-template-columns:1fr 1fr; gap:12px 20px; font-size:16.5px; margin-top:4px;}
+  .share ul{list-style:none; padding:0;}
+  .share li{padding:4px 0;}
+  .share .h{font-size:12.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:5px;}
+  .yes{color:var(--sage); font-weight:700;} .no{color:var(--clay); font-weight:700;}
+
+  .bar{height:9px; background:var(--line); border-radius:100px; overflow:hidden; margin-top:9px;}
+  .bar > i{display:block; height:100%; background:var(--clay); border-radius:100px;}
+  .bar.good > i{background:var(--sage);}
+
+  input.txt{
+    width:100%; font-size:17px; padding:11px 13px; border-radius:10px;
+    border:1px solid var(--line); background:#fff; color:var(--ink); font-family:inherit; min-width:0;
+  }
+
+  /* ---------- bottom nav ---------- */
+  .bottomnav{
+    position:fixed; bottom:0; left:0; right:0; display:flex; background:var(--card);
+    border-top:1px solid var(--line); z-index:40; padding-bottom:env(safe-area-inset-bottom);
+  }
+  .bottomnav button{
+    flex:1; font-size:13.5px; font-weight:700; padding:11px 4px 13px; background:none;
+    border:none; color:var(--muted); cursor:pointer; font-family:inherit;
+    border-top:3px solid transparent; position:relative;
+  }
+  .bottomnav button.active{color:var(--sage); border-top-color:var(--sage);}
+  .bottomnav .nico{display:block; font-size:22px; margin-bottom:1px;}
+  .dot{
+    position:absolute; top:7px; left:50%; margin-left:14px; width:9px; height:9px;
+    border-radius:50%; background:var(--clay); display:none;
+  }
+  .dot.on{display:block;}
+
+  footer{text-align:center; color:var(--muted); font-size:13px; padding:8px 18px 24px; line-height:1.5;}
+
+  @media (max-width:520px){
+    body{font-size:19px;}
+    h2.screen{font-size:24px;}
+    .share{grid-template-columns:1fr;}
+    .bottomnav button{font-size:11.5px;}
+    .bottomnav .nico{font-size:20px;}
+  }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="logo">RR</div>
+  <div class="logo">RL</div>
   <div>
     <h1>Relage</h1>
     <div class="sub" id="statusHuman">Here to help you get to your care</div>
   </div>
-  <div class="hbtns">
-    <button class="hbtn" onclick="showView('setup')">⚙️ Setup</button>
-    <button class="hbtn" onclick="toggleDrawer()">🛠 Demo</button>
-  </div>
+  <button class="hbtn" onclick="resetDemo()">↺ Reset</button>
 </header>
 
 <main>
 
-  <!-- ============ HOME ============ -->
-  <section class="view active" id="view-home">
-    <div class="greeting" id="greetName">Good morning 👋</div>
-    <div class="subgreet">Here's what needs your attention.</div>
-    <div class="card" id="needCard">
-      <h2 id="needTitle">Check-up due</h2>
-      <p class="plain" id="needBody"></p>
-      <button class="bigbtn" id="goBtn" onclick="startCoordinate()">Yes, help me book it</button>
+  <!-- ═══════════════ 1. PROFILE ═══════════════ -->
+  <section class="view" id="view-profile">
+    <h2 class="screen">Eleanor's profile</h2>
+    <div class="screensub">Set up once, by Eleanor or her daughter Sarah.</div>
+
+    <div class="card">
+      <h3>About Eleanor</h3>
+      <div id="profileRows"></div>
     </div>
-    <div class="card" id="allSet" style="display:none">
-      <h2>Nothing needs your attention right now 😊</h2>
-      <p class="plain">We'll let you know when your next check-up is coming due.</p>
+
+    <div class="card">
+      <h3>Recurring care plan</h3>
+      <p class="lede" style="margin-bottom:10px">Relage only surfaces care that Eleanor or her provider put on a schedule.</p>
+      <div id="recurringRows"></div>
+      <div class="note info">🔒 This plan is <b>patient-entered</b>. Relage never infers medical need from age or history, and never recommends care.</div>
+    </div>
+
+    <div class="card">
+      <h3>What Sarah sees</h3>
+      <p class="lede" style="margin-bottom:12px">When Relage contacts a caregiver, it shares only what that person needs in order to act.</p>
+      <div class="share">
+        <div>
+          <div class="h">Shared</div>
+          <ul>
+            <li><span class="yes">✓</span> Appointment time</li>
+            <li><span class="yes">✓</span> Provider location</li>
+            <li><span class="yes">✓</span> Transportation request</li>
+          </ul>
+        </div>
+        <div>
+          <div class="h">Never shared</div>
+          <ul>
+            <li><span class="no">✗</span> Medical history</li>
+            <li><span class="no">✗</span> Medications</li>
+            <li><span class="no">✗</span> Other appointments</li>
+            <li><span class="no">✗</span> Insurance details</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Anything else we should know?</h3>
+      <p class="lede" style="margin-bottom:12px">Type it in plain language. Gemma runs on this device and turns it into preferences — the profile never leaves the machine.</p>
+      <div style="display:flex; gap:9px;">
+        <input class="txt" id="onboardInput" placeholder="e.g. I don't like driving after dark"
+               onkeydown="if(event.key==='Enter')sendOnboard()">
+        <button class="bigbtn" style="width:auto; margin:0; padding:11px 20px; font-size:17px;"
+                onclick="sendOnboard()" id="onboardBtn">Add</button>
+      </div>
+      <div class="why" id="onboardOut" style="display:none">
+        <div class="lbl">GEMMA UNDERSTOOD THIS AS</div>
+        <div id="onboardText"></div>
+      </div>
     </div>
   </section>
 
-  <!-- ============ WORKING ============ -->
-  <section class="view" id="view-working">
-    <div class="greeting" style="font-size:26px" id="workTitle">Working on it…</div>
-    <div class="subgreet" id="workSub">This takes a moment. You don't need to do anything.</div>
-    <div class="card">
-      <div class="steps" id="friendlySteps"></div>
+  <!-- ═══════════════ 2. TODAY ═══════════════ -->
+  <section class="view active" id="view-today">
+    <h2 class="screen" id="greet">Good morning 👋</h2>
+    <div class="screensub">Here's what needs your attention.</div>
+
+    <div id="actionCards"></div>
+
+    <div class="card" id="inFlightCard" style="display:none">
+      <span class="pill live">In progress</span>
+      <h3 style="margin-top:9px">Relage is working on your appointment</h3>
+      <p class="lede" id="inFlightBody">Setting things up…</p>
+      <button class="bigbtn" onclick="showView('coordinate')">See what's happening</button>
+    </div>
+
+    <div class="card" id="allSetCard" style="display:none">
+      <span class="pill live">All set</span>
+      <h3 style="margin-top:9px">Nothing needs your attention 😊</h3>
+      <p class="lede">Your visit and your ride are booked. We'll remind you the day before and the morning of.</p>
+      <button class="bigbtn ghost" onclick="showView('calendar')">See my calendar</button>
     </div>
   </section>
 
-  <!-- ============ REVIEW ============ -->
-  <section class="view" id="view-review">
-    <div class="greeting" style="font-size:27px">Here's your plan</div>
-    <div class="subgreet">Please look it over. Nothing is booked until you say OK.</div>
+  <!-- ═══════════════ 3. COORDINATE ═══════════════ -->
+  <section class="view" id="view-coordinate">
+    <h2 class="screen" id="coordTitle">Working on it…</h2>
+    <div class="screensub" id="coordSub">This takes a moment. You don't need to do anything.</div>
+
     <div class="card">
+      <div class="steps" id="coordSteps">
+        <div class="step"><span class="ico">·</span><span class="lede">Nothing yet — start from the Today screen.</span></div>
+      </div>
+    </div>
+
+    <div class="card" id="apptCard" style="display:none">
+      <span class="pill wait" id="apptPill">Held — not booked yet</span>
+      <h3 style="margin-top:9px">The appointment we found</h3>
+      <div id="apptRows"></div>
+      <div class="note info">Nothing is booked until you review the whole plan — including your ride — and say OK.</div>
+    </div>
+
+    <div class="card">
+      <details class="tech">
+        <summary>Agent activity — tool calls, Gemma routing, and latency</summary>
+        <div class="techfeed" id="techFeed"></div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ═══════════════ 4. RIDE ═══════════════ -->
+  <section class="view" id="view-ride">
+    <h2 class="screen" id="rideTitle">Your ride</h2>
+    <div class="screensub" id="rideSub">Getting you there and back.</div>
+
+    <div class="card" id="whyAskCard" style="display:none">
+      <h3 style="font-size:20px">Why we asked Sarah first</h3>
+      <p class="lede" id="adaptText"></p>
+      <div class="bar" id="adaptBar"><i style="width:0%"></i></div>
+      <div style="display:flex; justify-content:space-between; gap:12px; font-size:14.5px; color:var(--muted); margin-top:6px;">
+        <span id="adaptLabel"></span><span>You stay in control</span>
+      </div>
+    </div>
+
+    <div class="card" id="outreachCard" style="display:none">
+      <h3>Asking Sarah</h3>
+      <p class="lede" style="margin-bottom:6px" id="outreachLede">We reached out about driving you.</p>
+      <div class="note" id="voiceNote" style="display:none"></div>
+      <button class="bigbtn clay" id="callBtn" onclick="callCaregiver()" style="display:none">📞 Call Sarah's real phone</button>
+
+      <div class="phone" style="margin-top:14px">
+        <div class="ph-head"><span>📱</span><span id="phoneHead">Sarah's phone</span></div>
+        <div class="msgs" id="phoneMsgs"></div>
+        <div class="reply">
+          <input id="smsInput" placeholder="Reply as Sarah…" onkeydown="if(event.key==='Enter')sendSms()">
+          <button onclick="sendSms()" title="Send">➤</button>
+        </div>
+        <div class="quick">
+          <button onclick="quick('NO, I have work meetings all day Tuesday, sorry')">Can't — working</button>
+          <button onclick="quick('YES I can take her')">Yes, I can drive</button>
+          <button onclick="quick('I could drive her there but not home')">Only one way</button>
+        </div>
+      </div>
+      <div class="note info" style="font-size:15px">Gemma interprets whatever Sarah writes or says out loud — she never has to answer exactly "YES" or "NO".</div>
+    </div>
+
+    <div class="card" id="transportCard" style="display:none">
+      <span class="pill wait" id="transportPill">Found — not booked yet</span>
+      <h3 style="margin-top:9px" id="transportHead">Your ride</h3>
+      <div id="transportRows"></div>
+    </div>
+
+    <div class="card" id="reviewCard" style="display:none">
+      <h3>Review your plan</h3>
+      <p class="lede" style="margin-bottom:4px">Please look it over. Nothing is booked until you say OK.</p>
       <div id="planRows"></div>
       <div class="why" id="whyBox" style="display:none">
         <div class="lbl">WHY THIS WORKS FOR YOU</div>
         <div id="whyText"></div>
       </div>
-      <button class="bigbtn" onclick="confirmPlan()">✓ Yes, book everything</button>
-      <button class="bigbtn gray" onclick="showView('home')">Not now</button>
+      <button class="bigbtn" onclick="confirmPlan()" id="confirmBtn">✓ Confirm appointment and ride</button>
+      <button class="bigbtn ghost" onclick="showView('today')">Not right now</button>
+    </div>
+
+    <div class="card" id="rideIdleCard">
+      <p class="lede">No ride to sort out yet. Once you coordinate an appointment, Sarah's answer and your transportation show up here.</p>
     </div>
   </section>
 
-  <!-- ============ DONE ============ -->
-  <section class="view" id="view-done">
-    <div class="greeting" id="doneGreet">You're all set! 🎉</div>
-    <div class="subgreet">Everything is booked. Here's your day:</div>
-    <div class="card"><div id="doneRows"></div>
-      <div class="notice good" id="doneNote"></div>
-    </div>
-    <button class="bigbtn gray" onclick="showView('schedule')">See my full schedule</button>
-  </section>
+  <!-- ═══════════════ 5. CARE CALENDAR ═══════════════ -->
+  <section class="view" id="view-calendar">
+    <h2 class="screen">Care calendar</h2>
+    <div class="screensub">Your appointments and rides, in order.</div>
 
-  <!-- ============ SCHEDULE ============ -->
-  <section class="view" id="view-schedule">
-    <div class="greeting" style="font-size:27px">My schedule</div>
-    <div class="subgreet">Your appointments and rides, in order.</div>
-    <div class="card"><div class="timeline" id="timeline"></div></div>
-  </section>
+    <div class="card" id="confirmedBanner" style="display:none">
+      <span class="pill live">Confirmed</span>
+      <h3 style="margin-top:9px" id="doneGreet">You're all set! 🎉</h3>
+      <p class="lede" id="doneNote"></p>
+    </div>
 
-  <!-- ============ SETUP (caregiver-facing) ============ -->
-  <section class="view" id="view-setup">
-    <div class="greeting" style="font-size:27px">Caregiver setup</div>
-    <div class="subgreet">Usually filled in by a family member or caregiver, once.</div>
-    <div class="card">
-      <div class="fgrid">
-        <div><label>First name</label><input id="f_first" value="Eleanor"></div>
-        <div><label>Last name</label><input id="f_last" value="Brooks"></div>
-        <div><label>Age</label><input id="f_age" type="number" value="78"></div>
-        <div><label>Town</label><input id="f_town" value="Pine Ridge, Pennsylvania"></div>
-        <div><label>Insurance</label>
-          <select id="f_ins"><option>Medicare</option><option>Medicaid</option><option>Commercial</option></select></div>
-        <div><label>Preferred pharmacy</label><input id="f_pharm" value="Pine Ridge Pharmacy"></div>
-        <div class="full"><label>Gets around with</label>
-          <div class="checkrow">
-            <label><input type="checkbox" id="f_walker" checked> Walker</label>
-            <label><input type="checkbox" id="f_wheel"> Wheelchair</label>
-            <label><input type="checkbox" id="f_none"> No aid</label>
-          </div></div>
-        <div><label>Best time for appointments</label>
-          <select id="f_time"><option value="weekday mornings">Mornings</option><option value="weekday afternoons">Afternoons</option></select></div>
-        <div></div>
-        <div><label>Caregiver name</label><input id="f_cgname" value="Sarah Brooks"></div>
-        <div><label>Caregiver cell (for real texts)</label><input id="f_cgphone" value="+1-555-0142" placeholder="+15551234567"></div>
-        <div><label>Type of recurring care</label><input id="f_care" value="cardiology follow-up"></div>
-        <div><label>Usual doctor's office</label><input id="f_prov" value="Regional Heart Center"></div>
-        <div><label>How often (months)</label><input id="f_interval" type="number" value="6"></div>
-        <div><label>Last visit</label><input id="f_last_visit" type="date" value="2026-02-08"></div>
-      </div>
-      <button class="bigbtn" style="font-size:20px" onclick="saveProfile()">Save profile</button>
-      <div class="notice good" id="saveNote" style="display:none">Saved! The Today screen now reflects this profile.</div>
-    </div>
-    <div class="card">
-      <h2 style="font-size:20px">Anything else we should know?</h2>
-      <p class="plain" style="font-size:16px; margin-bottom:10px">Type it naturally — Gemma (running on this device) turns it into preferences. Try: "I don't like driving after dark and mornings are best for me."</p>
-      <div style="display:flex; gap:8px;">
-        <input id="onboardInput" placeholder="Type in plain language…">
-        <button class="bigbtn" style="width:auto; margin:0; font-size:18px; padding:12px 18px;" onclick="sendOnboard()" id="onboardBtn">Add</button>
-      </div>
-      <div class="why" id="onboardOut" style="display:none; margin-top:12px">
-        <div class="lbl">UNDERSTOOD AS</div><div id="onboardText"></div>
-      </div>
-    </div>
+    <div class="card"><div id="timeline"></div></div>
   </section>
 
 </main>
 
-<!-- bottom navigation: two big targets only -->
 <nav class="bottomnav">
-  <button id="nav-home" class="active" onclick="showView('home')"><span class="nico">🏠</span>Home</button>
-  <button id="nav-schedule" onclick="showView('schedule')"><span class="nico">📅</span>My Schedule</button>
+  <button id="nav-profile"    onclick="showView('profile')"><span class="nico">👤</span>Profile</button>
+  <button id="nav-today"      onclick="showView('today')" class="active"><span class="nico">🏠</span>Today<span class="dot" id="dot-today"></span></button>
+  <button id="nav-coordinate" onclick="showView('coordinate')"><span class="nico">⚙️</span>Coordinate<span class="dot" id="dot-coordinate"></span></button>
+  <button id="nav-ride"       onclick="showView('ride')"><span class="nico">🚐</span>Ride<span class="dot" id="dot-ride"></span></button>
+  <button id="nav-calendar"   onclick="showView('calendar')"><span class="nico">📅</span>Calendar<span class="dot" id="dot-calendar"></span></button>
 </nav>
 
-<!-- ============ DEMO DRAWER (judges / caregiver phone) ============ -->
-<aside class="drawer" id="drawer">
-  <button class="close" onclick="toggleDrawer()">✕</button>
-  <h3>📱 Caregiver's phone (SMS)</h3>
-  <div class="twstatus" id="twStatus">Simulator mode — set TWILIO_* env vars for real SMS</div>
-  <div class="msgs" id="phoneMsgs"></div>
-  <div class="reply">
-    <input id="smsInput" placeholder="Reply as caregiver…" onkeydown="if(event.key==='Enter')sendSms()">
-    <button onclick="sendSms()">➤</button>
-  </div>
-  <div class="quick">
-    <button onclick="quick('NO, I have work meetings all day Tuesday, sorry')">Busy that day</button>
-    <button onclick="quick('YES I can take her')">Can drive</button>
-    <button onclick="quick('I could drive her there but not home')">Partial</button>
-  </div>
-  <button class="rbtn" id="callBtn" style="display:none; background:#1f6f5c; color:#fff; border-color:#1f6f5c;"
-    onclick="callCaregiver()">📞 Call caregiver's real phone instead</button>
-  <h3>⚙️ Agent activity (technical)</h3>
-  <div class="techfeed" id="techFeed"></div>
-  <button class="rbtn" onclick="resetDemo()">↺ Reset demo</button>
-</aside>
-
-<footer>Relage · On-device Gemma · Care logistics only — not diagnosis or treatment · Synthetic data</footer>
+<footer>
+  Relage · On-device Gemma via Ollama · Care logistics only — not diagnosis or treatment · Synthetic data only
+</footer>
 
 <script>
+/* ═══════════════════════════════════════════════════════════════════
+   Relage frontend — five screens over the coordination state machine.
+
+   The backend runs coordination in a background thread: POST /coordinate
+   returns {started:true} immediately and the real progression is only
+   visible by polling GET /state. So this UI is built around that poll,
+   and renders progress from state.activity rather than from status
+   transitions — APPOINTMENT_HELD and TRANSPORT_FOUND are each overwritten
+   inside the same worker and are never observable at a 1.2s interval.
+   ═══════════════════════════════════════════════════════════════════ */
+
 let state = null, profile = null, config = null;
-let currentView = 'home', userPinned = false, lastStatus = '';
+let currentView = 'today', pinned = false, lastStatus = null;
 
 const HUMAN_STATUS = {
-  NEEDS_APPOINTMENT: "Here to help you get to your care",
-  APPOINTMENT_HELD: "Finding your appointment…",
-  TRANSPORT_NEEDED: "Sorting out your ride…",
-  CAREGIVER_CONTACTED: "Waiting to hear back about your ride",
-  CAREGIVER_UNAVAILABLE: "Finding you another ride…",
-  TRANSPORT_FOUND: "Almost ready…",
+  NEEDS_APPOINTMENT:          "Here to help you get to your care",
+  APPOINTMENT_HELD:           "Finding your appointment…",
+  TRANSPORT_NEEDED:           "Sorting out your ride…",
+  CAREGIVER_CONTACTED:        "Waiting to hear back about your ride",
+  CAREGIVER_UNAVAILABLE:      "Finding you another ride…",
+  TRANSPORT_FOUND:            "Almost ready…",
   AWAITING_USER_CONFIRMATION: "Your plan is ready to review",
-  CONFIRMED: "You're all set!",
+  CONFIRMED:                  "You're all set!",
 };
 
-function showView(name, pinned = true) {
-  currentView = name; userPinned = pinned;
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.getElementById('view-' + name).classList.add('active');
-  document.getElementById('nav-home').classList.toggle('active', name === 'home');
-  document.getElementById('nav-schedule').classList.toggle('active', name === 'schedule');
-  if (name === 'schedule') refreshCalendar();
-}
-function toggleDrawer() { document.getElementById('drawer').classList.toggle('open'); }
+// Which screen each coordination status belongs on.
+const SCREEN_FOR = {
+  NEEDS_APPOINTMENT:          'today',
+  APPOINTMENT_HELD:           'coordinate',
+  TRANSPORT_NEEDED:           'coordinate',
+  CAREGIVER_CONTACTED:        'ride',
+  CAREGIVER_UNAVAILABLE:      'ride',
+  TRANSPORT_FOUND:            'ride',
+  AWAITING_USER_CONFIRMATION: 'ride',
+  CONFIRMED:                  'calendar',
+};
 
-async function startCoordinate() {
-  document.getElementById('goBtn').disabled = true;
-  await fetch('/coordinate', { method: 'POST' });
-  showView('working', false);
+const VIEWS = ['profile','today','coordinate','ride','calendar'];
+const RIDE_STATES = ['CAREGIVER_CONTACTED','CAREGIVER_UNAVAILABLE','TRANSPORT_FOUND',
+                     'AWAITING_USER_CONFIRMATION','CONFIRMED'];
+
+function showView(name, isPinned = true){
+  currentView = name; pinned = isPinned;
+  VIEWS.forEach(v => {
+    document.getElementById('view-' + v).classList.toggle('active', v === name);
+    document.getElementById('nav-' + v).classList.toggle('active', v === name);
+  });
+  const d = document.getElementById('dot-' + name);
+  if(d) d.classList.remove('on');
+  if(name === 'calendar') refreshCalendar();
+  window.scrollTo(0, 0);
 }
 
-async function confirmPlan() {
-  await fetch('/confirm-plan', { method: 'POST' });
-  await refreshCalendar();
+/* ─────────────── helpers ─────────────── */
+
+function esc(s){
+  return String(s ?? '').replace(/[&<>"]/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+function first(n){ return (n || '').split(' ')[0]; }
+function cgFirst(){ return first(profile?.caregiver?.name) || 'your caregiver'; }
+function patFirst(){ return first(profile?.patient?.name) || 'there'; }
+function titleCase(s){ return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+function kv(k, v){
+  return `<div class="kv"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`;
 }
 
-async function resetDemo() {
-  await fetch('/reset', { method: 'POST' });
-  localBubbles = []; lastStatus = '';
-  document.getElementById('goBtn').disabled = false;
-  await loadProfile(); showView('home', false);
+const MONTHS = ['','January','February','March','April','May','June','July',
+                'August','September','October','November','December'];
+function fmtLong(d){ return d ? `${MONTHS[+d.slice(5,7)]} ${+d.slice(-2)}` : ''; }
+function fmtShort(d){ return d ? `${MONTHS[+d.slice(5,7)].slice(0,3).toUpperCase()} ${+d.slice(-2)}` : ''; }
+
+/* ─────────────── actions ─────────────── */
+
+async function startCoordinate(){
+  document.querySelectorAll('.coordBtn').forEach(b => b.disabled = true);
+  await fetch('/coordinate', {method:'POST'});
+  showView('coordinate', false);
 }
 
-/* ---------- caregiver phone sim ---------- */
+async function confirmPlan(){
+  const btn = document.getElementById('confirmBtn');
+  btn.disabled = true; btn.textContent = 'Booking…';
+  try{ await fetch('/confirm-plan', {method:'POST'}); await refreshCalendar(); }
+  finally{ btn.disabled = false; btn.textContent = '✓ Confirm appointment and ride'; }
+}
+
+async function callCaregiver(){
+  const btn = document.getElementById('callBtn');
+  btn.disabled = true; btn.textContent = '📞 Dialing…';
+  let msg = `📞 Ringing ${cgFirst()} — answer and speak the reply out loud.`;
+  try{
+    const r = await fetch('/call-caregiver', {method:'POST'});
+    if(!r.ok){
+      const e = await r.json().catch(() => ({}));
+      msg = 'Could not place the call: ' + (e.error || r.status);
+    }
+  }catch(e){ msg = 'Could not place the call.'; }
+  const n = document.getElementById('voiceNote');
+  n.style.display = 'block'; n.className = 'note warn'; n.textContent = msg;
+  setTimeout(() => { btn.disabled = false; btn.textContent = '📞 Call Sarah again'; }, 15000);
+}
+
+async function resetDemo(){
+  await fetch('/reset', {method:'POST'});
+  localBubbles = []; lastStatus = null;
+  document.querySelectorAll('.coordBtn').forEach(b => b.disabled = false);
+  document.getElementById('onboardOut').style.display = 'none';
+  await loadProfile(); await loadConfig();
+  showView('today', false);
+}
+
+/* ─────────────── caregiver phone ─────────────── */
+
 let localBubbles = [];
-async function sendSms() {
+
+async function sendSms(){
   const input = document.getElementById('smsInput');
   const text = input.value.trim();
-  if (!text) return;
+  if(!text) return;
   input.value = '';
-  localBubbles.push({ dir: 'out', text, who: cgFirst(), afterInbound: (state?.sms_outbox || []).length });
+  localBubbles.push({dir:'out', text, who:cgFirst(),
+                     afterInbound:(state?.sms_outbox || []).length});
   renderPhone();
   await fetch('/caregiver-response', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text })
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({text})
   });
 }
-function quick(t) { document.getElementById('smsInput').value = t; sendSms(); }
+function quick(t){ document.getElementById('smsInput').value = t; sendSms(); }
 
-async function callCaregiver() {
-  const btn = document.getElementById('callBtn');
-  btn.disabled = true; btn.textContent = '📞 Calling…';
-  const r = await fetch('/call-caregiver', { method: 'POST' });
-  if (!r.ok) { btn.textContent = '📞 Call failed — check .env'; }
-  else { btn.textContent = '📞 Ringing… answer and speak your reply'; }
-  setTimeout(() => { btn.disabled = false;
-    btn.textContent = "📞 Call caregiver's real phone instead"; }, 15000);
-}
-function cgFirst() { return (profile?.caregiver?.name || 'Caregiver').split(' ')[0]; }
-
-function renderPhone() {
+function renderPhone(){
+  // A "voice" entry is Sarah speaking on the call — not a message Relage sent,
+  // so it renders on her side of the thread.
+  const items = (state?.sms_outbox || []).map(m => m.via === 'voice'
+    ? {dir:'voice', text:m.body, who:`${cgFirst()} · spoken on the call`}
+    : {dir:'in', text:m.body,
+       who:'Relage → ' + m.to + (m.via === 'twilio' ? ' · real SMS ✓' : '')});
+  [...localBubbles].reverse().forEach(b => items.splice(b.afterInbound, 0, b));
   const el = document.getElementById('phoneMsgs');
-  const inbound = (state?.sms_outbox || []).map(m =>
-    ({ dir: 'in', text: m.body, who: 'Relage → ' + m.to + (m.via === 'twilio' ? ' · real SMS ✓' : '') }));
-  const all = [...inbound];
-  [...localBubbles].reverse().forEach(b => all.splice(b.afterInbound, 0, b));
-  el.innerHTML = all.map(b =>
-    `<div class="bubble ${b.dir}"><div class="who">${b.who}</div>${b.text}</div>`).join('');
+  el.innerHTML = items.map(b =>
+    `<div class="bubble ${b.dir}"><div class="who">${esc(b.who)}</div>${esc(b.text)}</div>`
+  ).join('');
   el.scrollTop = el.scrollHeight;
 }
 
-/* ---------- friendly progress ---------- */
-function renderWorking() {
-  const items = (state.activity || []).filter(a => a.friendly);
-  const el = document.getElementById('friendlySteps');
-  el.innerHTML = items.map((a, i) => {
-    const last = i === items.length - 1;
-    const ico = (last && (state.busy || state.status === 'CAREGIVER_CONTACTED'))
-      ? '<span class="spinner"></span>' : '✅';
-    return `<div class="step"><span class="ico">${ico}</span><span>${a.friendly}</span></div>`;
-  }).join('');
-  const waiting = state.status === 'CAREGIVER_CONTACTED';
-  document.getElementById('workTitle').textContent =
-    waiting ? `Waiting to hear from ${cgFirst()}…` : 'Working on it…';
-  document.getElementById('workSub').textContent = waiting
-    ? `We texted ${cgFirst()} about your ride. You don't need to do anything.`
-    : "This takes a moment. You don't need to do anything.";
+/* ─────────────── 1. profile ─────────────── */
+
+function renderProfile(){
+  if(!profile) return;
+  const p = profile.patient, c = profile.caregiver;
+  const mob = (p.mobility_needs || []).length
+    ? p.mobility_needs.map(titleCase).join(', ') : 'No aid';
+  document.getElementById('profileRows').innerHTML = [
+    ['Name', p.name], ['Age', p.age], ['Home', p.home_location],
+    ['Insurance', p.insurance], ['Gets around with', mob],
+    ['Best time for visits', (p.preferred_times || []).map(titleCase).join(', ')],
+    ['Preferred pharmacy', p.preferred_pharmacy],
+    ['Primary caregiver', `${c.name} (${c.relationship})`],
+  ].map(([k, v]) => kv(k, v)).join('');
+
+  document.getElementById('recurringRows').innerHTML =
+    (profile.recurring_care || []).map(rc =>
+      kv('Type of care', titleCase(rc.type)) +
+      kv('Usual provider', rc.provider) +
+      kv('How often', `Every ${rc.interval_months} months`) +
+      kv('Last visit', fmtLong(rc.last_visit)) +
+      kv('Where this came from', rc.source)
+    ).join('');
 }
 
-/* ---------- review + done ---------- */
-function planRowsHtml() {
-  const a = state.appointment, t = state.transport;
-  const care = (profile?.recurring_care?.[0]?.type || 'appointment');
-  return `
-    <div class="planrow"><span class="ico">🏥</span><div>
-      <b>${care.charAt(0).toUpperCase() + care.slice(1)}</b>
-      <div class="det">${a.provider}<br>${a.day}, ${fmtLong(a.date)} at ${a.time}</div></div></div>
-    <div class="planrow"><span class="ico">🚐</span><div>
-      <b>Your ride: ${t.name}</b>
-      <div class="det">Picks you up at ${t.pickup_time} · Room for your walker<br>Takes you home ${t.return_pickup_time === 'after appointment' ? 'after your visit' : 'at ' + t.return_pickup_time}</div></div></div>
-    <div class="planrow"><span class="ico">🔔</span><div>
-      <b>We'll remind you</b>
-      <div class="det">The day before, and the morning of. ${cgFirst()} gets updates too.</div></div></div>`;
-}
-function renderReview() {
-  document.getElementById('planRows').innerHTML = planRowsHtml();
-  if (state.plan_explanation) {
-    document.getElementById('whyBox').style.display = 'block';
-    document.getElementById('whyText').textContent = state.plan_explanation;
-  }
-}
-function renderDone() {
-  const first = (profile?.patient?.name || '').split(' ')[0];
-  document.getElementById('doneGreet').textContent = `You're all set, ${first}! 🎉`;
-  document.getElementById('doneRows').innerHTML = planRowsHtml();
-  document.getElementById('doneNote').textContent =
-    `We texted you and ${cgFirst()} a confirmation.`;
-}
-
-/* ---------- schedule ---------- */
-async function refreshCalendar() {
-  const r = await fetch('/calendar');
-  const { events } = await r.json();
-  const fmt = d => {
-    const m = ['','JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][parseInt(d.slice(5,7))];
-    return `${m} ${parseInt(d.slice(-2))}`;
-  };
-  document.getElementById('timeline').innerHTML = events.map(e => `
-    <div class="ev ${e.kind}">
-      <div class="date">${fmt(e.date)}</div>
-      <div><b>${e.time ? e.time + ' — ' : ''}${e.title}</b>
-      <div class="meta">${e.status}</div></div>
-    </div>`).join('');
-}
-function fmtLong(d) {
-  const m = ['','January','February','March','April','May','June','July','August','September','October','November','December'][parseInt(d.slice(5,7))];
-  return `${m} ${parseInt(d.slice(-2))}`;
-}
-
-/* ---------- home ---------- */
-function renderHome() {
-  if (!profile) return;
-  const first = profile.patient.name.split(' ')[0];
-  const h = new Date().getHours();
-  const part = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
-  document.getElementById('greetName').textContent = `Good ${part}, ${first} 👋`;
-  const due = state && state.status === 'NEEDS_APPOINTMENT';
-  document.getElementById('needCard').style.display = due ? 'block' : 'none';
-  document.getElementById('allSet').style.display = due ? 'none' : 'block';
-  if (due) {
-    const rc = profile.recurring_care[0];
-    const care = rc.type.charAt(0).toUpperCase() + rc.type.slice(1);
-    document.getElementById('needTitle').textContent = `${care} — time to book`;
-    document.getElementById('needBody').textContent =
-      `It has been about ${rc.interval_months} months since your last visit to ${rc.provider}. Want us to set up the appointment and a ride?`;
-  }
-}
-
-/* ---------- setup ---------- */
-async function saveProfile() {
-  const mobility = [];
-  if (document.getElementById('f_walker').checked) mobility.push('walker');
-  if (document.getElementById('f_wheel').checked) mobility.push('wheelchair');
-  const body = {
-    patient: {
-      name: `${val('f_first')} ${val('f_last')}`.trim(),
-      age: parseInt(val('f_age')) || 0,
-      home_location: val('f_town'),
-      insurance: val('f_ins'),
-      mobility_needs: mobility,
-      preferred_times: [val('f_time')],
-      preferred_pharmacy: val('f_pharm'),
-    },
-    caregiver: { name: val('f_cgname'), relationship: 'caregiver', phone: val('f_cgphone') },
-    recurring_care: [{
-      type: val('f_care'), provider: val('f_prov'),
-      interval_months: parseInt(val('f_interval')) || 6,
-      last_visit: val('f_last_visit'),
-      source: 'caregiver-entered recurring plan',
-    }],
-  };
-  const r = await fetch('/profile', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  profile = await r.json();
-  localBubbles = []; lastStatus = '';
-  document.getElementById('goBtn').disabled = false;
-  document.getElementById('saveNote').style.display = 'block';
-  setTimeout(() => document.getElementById('saveNote').style.display = 'none', 4000);
-  renderHome();
-}
-function val(id) { return document.getElementById(id).value; }
-
-async function sendOnboard() {
+async function sendOnboard(){
   const input = document.getElementById('onboardInput');
   const text = input.value.trim();
-  if (!text) return;
+  if(!text) return;
   const btn = document.getElementById('onboardBtn');
+  const out = document.getElementById('onboardOut');
   btn.disabled = true; btn.textContent = '…';
-  const r = await fetch('/onboarding-note', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text })
-  });
-  const out = await r.json();
-  document.getElementById('onboardOut').style.display = 'block';
-  document.getElementById('onboardText').innerHTML =
-    (out.summary || '') + '<br><span style="font-size:14px;color:var(--muted)">' +
-    (out.preferences || []).map(p => `${p.field}: ${p.value}`).join(' · ') + '</span>';
-  btn.disabled = false; btn.textContent = 'Add'; input.value = '';
+  try{
+    const r = await fetch('/onboarding-note', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({text})
+    });
+    const o = await r.json();
+    const prefs = (o.preferences || [])
+      .map(p => `${esc(p.field)}: <b>${esc(p.value)}</b>`).join(' · ');
+    out.style.display = 'block';
+    document.getElementById('onboardText').innerHTML = esc(o.summary || '') +
+      (prefs ? `<div style="font-size:15px; color:var(--muted); margin-top:7px">${prefs}</div>` : '');
+    input.value = '';
+  }catch(e){
+    out.style.display = 'block';
+    document.getElementById('onboardText').textContent =
+      'Could not reach the on-device model — is Ollama running?';
+  }
+  btn.disabled = false; btn.textContent = 'Add';
 }
 
-/* ---------- tech feed + polling ---------- */
-function renderTech() {
-  document.getElementById('techFeed').innerHTML = (state.activity || []).map(a =>
-    `<div class="tf"><span class="k ${a.kind}">${a.kind}</span>${a.text}</div>`).join('');
+/* ─────────────── 2. today ─────────────── */
+
+async function renderToday(){
+  if(!profile) return;
+  const h = new Date().getHours();
+  const part = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+  document.getElementById('greet').textContent = `Good ${part}, ${patFirst()} 👋`;
+
+  const s = state?.status;
+  const needs = s === 'NEEDS_APPOINTMENT';
+  const done  = s === 'CONFIRMED';
+
+  document.getElementById('inFlightCard').style.display = (!needs && !done) ? 'block' : 'none';
+  document.getElementById('allSetCard').style.display   = done ? 'block' : 'none';
+  if(!needs && !done)
+    document.getElementById('inFlightBody').textContent = HUMAN_STATUS[s] || 'Working on it…';
+
+  // /actions only returns cards while status is NEEDS_APPOINTMENT.
+  const box = document.getElementById('actionCards');
+  if(!needs){ box.innerHTML = ''; return; }
+  try{
+    const {cards} = await (await fetch('/actions')).json();
+    box.innerHTML = (cards || []).map(c => `
+      <div class="card">
+        <span class="pill due">Due now</span>
+        <h3 style="margin-top:9px">${esc(c.title)}</h3>
+        <div style="margin:12px 0 0">
+          ${kv('Last visit', fmtLong(c.last_visit))}
+          ${kv('Usual interval', c.interval)}
+          ${kv('Preferred provider', c.provider)}
+          ${kv('Distance', c.distance)}
+        </div>
+        <div class="note info" style="font-size:15px">
+          Showing because of your ${esc(c.source)} — not because Relage decided you need care.
+        </div>
+        <button class="bigbtn coordBtn" onclick="startCoordinate()">Coordinate appointment</button>
+      </div>`).join('');
+  }catch(e){ /* server restarting */ }
 }
 
-async function poll() {
-  try {
-    const r = await fetch('/state');
-    state = await r.json();
-    document.getElementById('statusHuman').textContent =
-      HUMAN_STATUS[state.status] || '';
-    renderPhone(); renderTech();
-    document.getElementById('callBtn').style.display =
-      (state.status === 'CAREGIVER_CONTACTED' && config?.voice) ? 'block' : 'none';
-    if (state.status !== lastStatus) {
-      lastStatus = state.status; userPinned = false;
+/* ─────────────── 3. coordinate ─────────────── */
+
+function renderCoordinate(){
+  const acts = (state?.activity || []).filter(a => a.friendly);
+  const waiting = state?.status === 'CAREGIVER_CONTACTED';
+
+  if(acts.length){
+    document.getElementById('coordSteps').innerHTML = acts.map((a, i) => {
+      const spin = (i === acts.length - 1) && (state.busy || waiting);
+      return `<div class="step"><span class="ico">${spin ? '<span class="spinner"></span>' : '✅'}</span>
+              <span>${esc(a.friendly)}</span></div>`;
+    }).join('');
+  }
+
+  document.getElementById('coordTitle').textContent =
+    waiting ? `Waiting to hear from ${cgFirst()}…`
+    : state?.status === 'CONFIRMED' ? 'All done 🎉' : 'Working on it…';
+  document.getElementById('coordSub').textContent =
+    waiting ? `We asked ${cgFirst()} about your ride. You don't need to do anything.`
+            : "This takes a moment. You don't need to do anything.";
+
+  const a = state?.appointment, card = document.getElementById('apptCard');
+  if(a){
+    card.style.display = 'block';
+    const confirmed = state.status === 'CONFIRMED';
+    const pill = document.getElementById('apptPill');
+    pill.textContent = confirmed ? 'Confirmed' : 'Held — not booked yet';
+    pill.className = 'pill ' + (confirmed ? 'live' : 'wait');
+    document.getElementById('apptRows').innerHTML =
+      kv('Provider', a.provider) +
+      kv('When', `${a.day}, ${fmtLong(a.date)} at ${a.time}`) +
+      kv('Distance from home', `${a.distance_miles} miles`) +
+      kv('Insurance', profile?.patient?.insurance || '—');
+  } else card.style.display = 'none';
+
+  renderTech();
+}
+
+function renderTech(){
+  // The backend appends a "[model latency]" tag to Gemma lines — split it out
+  // and render it as a chip so the two-tier routing is legible.
+  document.getElementById('techFeed').innerHTML =
+    (state?.activity || []).map(a => {
+      const m = /\s\[([^\]]+)\]\s*$/.exec(a.text || '');
+      const body = m ? a.text.slice(0, m.index) : (a.text || '');
+      return `<div class="tf"><span class="k ${esc(a.kind)}">${esc(a.kind)}</span>${esc(body)}` +
+             (m ? `<span class="meta">${esc(m[1])}</span>` : '') + '</div>';
+    }).join('');
+}
+
+/* ─────────────── 4. ride ─────────────── */
+
+function renderRide(){
+  const s = state?.status;
+  const active = RIDE_STATES.includes(s);
+  document.getElementById('rideIdleCard').style.display = active ? 'none' : 'block';
+
+  document.getElementById('rideTitle').textContent =
+    s === 'CONFIRMED' ? 'Your ride is booked' : 'Your ride';
+  document.getElementById('rideSub').textContent =
+    s === 'CAREGIVER_CONTACTED' ? `Waiting on ${cgFirst()}.` : 'Getting you there and back.';
+
+  // Adaptive preference logic, surfaced from the backend's "adapt" activity item.
+  const adapt = (state?.activity || []).find(a => a.kind === 'adapt');
+  const whyCard = document.getElementById('whyAskCard');
+  if(adapt && active){
+    whyCard.style.display = 'block';
+    document.getElementById('adaptText').textContent = adapt.text;
+    const p = adapt.detail?.ask_sarah;
+    if(p && p.attempts){
+      const rate = p.accepted / p.attempts;
+      const bar = document.getElementById('adaptBar');
+      bar.className = 'bar' + (rate >= 0.3 ? ' good' : '');
+      bar.querySelector('i').style.width = Math.round(rate * 100) + '%';
+      document.getElementById('adaptLabel').textContent =
+        `${cgFirst()} accepted ${p.accepted} of ${p.attempts} past ride requests`;
     }
-    // Route the visible screen from the coordination status unless the user
-    // explicitly navigated somewhere (Schedule/Setup stay put).
-    if (!userPinned) {
-      const s = state.status;
-      if (s === 'NEEDS_APPOINTMENT') { renderHome(); if (currentView !== 'home') showView('home', false); }
-      else if (s === 'AWAITING_USER_CONFIRMATION') { renderReview(); if (currentView !== 'review') showView('review', false); }
-      else if (s === 'CONFIRMED') { renderDone(); if (currentView !== 'done') showView('done', false); }
-      else { renderWorking(); if (currentView !== 'working') showView('working', false); }
-    } else if (currentView === 'working') renderWorking();
-    renderHome();
-  } catch (e) { /* server restarting; keep polling */ }
+  } else whyCard.style.display = 'none';
+
+  // Outreach + caregiver phone
+  const showOutreach = active && s !== 'CONFIRMED';
+  document.getElementById('outreachCard').style.display = showOutreach ? 'block' : 'none';
+  if(showOutreach){
+    const waiting = s === 'CAREGIVER_CONTACTED';
+    document.getElementById('phoneHead').textContent = `${cgFirst()}'s phone`;
+    document.getElementById('smsInput').placeholder = `Reply as ${cgFirst()}…`;
+    document.getElementById('outreachLede').textContent = waiting
+      ? `We asked ${cgFirst()} whether she can drive you. Waiting to hear back…`
+      : `${cgFirst()} has answered.`;
+    // The real call is only offered while the ask is still outstanding.
+    document.getElementById('callBtn').style.display =
+      (config?.voice && waiting) ? 'block' : 'none';
+  }
+
+  // Transport result
+  const t = state?.transport, tc = document.getElementById('transportCard');
+  if(t && active && s !== 'CAREGIVER_CONTACTED'){
+    tc.style.display = 'block';
+    document.getElementById('transportHead').textContent =
+      t.type === 'caregiver' ? `${cgFirst()} is driving you` : t.name;
+    const pill = document.getElementById('transportPill');
+    pill.textContent = s === 'CONFIRMED' ? 'Reserved' : 'Found — not booked yet';
+    pill.className = 'pill ' + (s === 'CONFIRMED' ? 'live' : 'wait');
+    document.getElementById('transportRows').innerHTML =
+      kv('Picks you up', t.pickup_time || 'TBD') +
+      kv('Brings you home', t.return_pickup_time === 'after appointment'
+          ? 'After your visit' : (t.return_pickup_time || 'TBD')) +
+      (t.walker_accommodation !== undefined
+        ? kv('Room for your walker', t.walker_accommodation ? 'Yes' : 'No') : '') +
+      (t.cost ? kv('Cost', t.cost) : '') +
+      (t.note ? kv('Good to know', t.note) : '');
+  } else tc.style.display = 'none';
+
+  // Review + confirm — the only path to CONFIRMED.
+  const review = document.getElementById('reviewCard');
+  if(s === 'AWAITING_USER_CONFIRMATION' && state.appointment && state.transport){
+    review.style.display = 'block';
+    document.getElementById('planRows').innerHTML = planRowsHtml();
+    if(state.plan_explanation){
+      document.getElementById('whyBox').style.display = 'block';
+      document.getElementById('whyText').textContent = state.plan_explanation;
+    }
+  } else review.style.display = 'none';
+
+  renderPhone();
+}
+
+function planRowsHtml(){
+  const a = state.appointment, t = state.transport;
+  const care = titleCase(profile?.recurring_care?.[0]?.type || 'appointment');
+  const home = t.return_pickup_time === 'after appointment'
+    ? 'after your visit' : 'at ' + t.return_pickup_time;
+  const walker = t.walker_accommodation ? ' · Room for your walker' : '';
+  return `
+    <div class="planrow"><span class="ico">🏥</span><div>
+      <b>${esc(care)}</b>
+      <div class="det">${esc(a.provider)}<br>${esc(a.day)}, ${fmtLong(a.date)} at ${esc(a.time)} · ${esc(a.distance_miles)} miles away</div></div></div>
+    <div class="planrow"><span class="ico">🚐</span><div>
+      <b>${esc(t.name)}</b>
+      <div class="det">Picks you up at ${esc(t.pickup_time || 'TBD')}${walker}<br>Brings you home ${esc(home)}</div></div></div>
+    <div class="planrow"><span class="ico">🔔</span><div>
+      <b>We'll remind you</b>
+      <div class="det">The day before, and the morning of.<br>${esc(cgFirst())} gets a confirmation and status updates.</div></div></div>`;
+}
+
+/* ─────────────── 5. care calendar ─────────────── */
+
+async function refreshCalendar(){
+  try{
+    const {events} = await (await fetch('/calendar')).json();
+    document.getElementById('timeline').innerHTML = (events || []).map(e => `
+      <div class="ev ${esc(e.kind)}">
+        <div class="date">${fmtShort(e.date)}</div>
+        <div><b>${e.time ? esc(e.time) + ' — ' : ''}${esc(e.title)}</b>
+        <div class="meta2">${esc(e.status)}</div></div>
+      </div>`).join('');
+  }catch(e){ /* server restarting */ }
+
+  const done = state?.status === 'CONFIRMED';
+  document.getElementById('confirmedBanner').style.display = done ? 'block' : 'none';
+  if(done){
+    document.getElementById('doneGreet').textContent = `You're all set, ${patFirst()}! 🎉`;
+    document.getElementById('doneNote').textContent =
+      `Your appointment and your ride are booked. We sent you and ${cgFirst()} a confirmation.`;
+  }
+}
+
+/* ─────────────── polling ─────────────── */
+
+async function poll(){
+  try{
+    state = await (await fetch('/state')).json();
+    document.getElementById('statusHuman').textContent = HUMAN_STATUS[state.status] || '';
+
+    if(state.status !== lastStatus){
+      // Badge the screen that changed if the user is looking somewhere else.
+      const target = SCREEN_FOR[state.status];
+      if(lastStatus !== null && target && target !== currentView){
+        const d = document.getElementById('dot-' + target);
+        if(d) d.classList.add('on');
+      }
+      lastStatus = state.status;
+      pinned = false;                       // follow the coordination again
+      if(state.status === 'CONFIRMED') refreshCalendar();
+    }
+
+    if(!pinned){
+      const target = SCREEN_FOR[state.status];
+      if(target && target !== currentView) showView(target, false);
+    }
+
+    renderToday(); renderCoordinate(); renderRide();
+  }catch(e){ /* server restarting; keep polling */ }
   setTimeout(poll, 1200);
 }
 
-async function loadProfile() {
-  const r = await fetch('/profile');
-  profile = await r.json();
-  renderHome();
+async function loadProfile(){
+  try{ profile = await (await fetch('/profile')).json(); renderProfile(); }catch(e){}
 }
-async function loadConfig() {
-  try {
-    const r = await fetch('/config');
-    config = await r.json();
-    document.getElementById('twStatus').innerHTML = config.voice
-      ? `🟢 <b>Real voice on</b> — Relage can call ${config.voice_to}. SMS shown in simulator (US carriers block texts from unregistered numbers).`
-      : config.twilio
-      ? `🟢 <b>Real SMS on</b> — texting ${config.caregiver_phone} via Twilio`
-      : '⚪ Simulator mode — set TWILIO_* env vars (or .env) for real SMS';
-  } catch (e) {}
+
+async function loadConfig(){
+  try{
+    config = await (await fetch('/config')).json();
+    const n = document.getElementById('voiceNote');
+    if(config.voice){
+      n.style.display = 'block'; n.className = 'note good';
+      n.innerHTML = `🟢 <b>Live voice on</b> — Relage can call ${esc(config.voice_to)} and Gemma will interpret the spoken answer.`;
+    } else if(config.twilio){
+      n.style.display = 'block'; n.className = 'note good';
+      n.innerHTML = `🟢 <b>Real SMS on</b> — texting ${esc(config.caregiver_phone)} via Twilio.`;
+    } else {
+      n.style.display = 'block'; n.className = 'note info';
+      n.innerHTML = '⚪ Simulator mode — reply below as Sarah. Set <b>TWILIO_*</b> and <b>BASE_URL</b> in <b>.env</b> for a real call.';
+    }
+  }catch(e){}
 }
 
 loadProfile(); loadConfig(); refreshCalendar(); poll();
