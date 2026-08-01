@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RuralRelay — Care Coordination</title>
+<style>
+  :root {
+    --bg: #f6f4ef; --card: #ffffff; --ink: #2b2b33; --muted: #6f6f7a;
+    --accent: #1f6f5c; --accent-soft: #e3f0ec; --warn: #b4552d;
+    --warn-soft: #f9ece4; --line: #e6e2d8; --blue: #33556e; --blue-soft: #e8eff5;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--ink); font-size: 17px; line-height: 1.5;
+  }
+  header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 18px 28px; background: var(--card); border-bottom: 1px solid var(--line);
+  }
+  header .logo {
+    width: 40px; height: 40px; border-radius: 12px; background: var(--accent);
+    color: #fff; display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 19px;
+  }
+  header h1 { font-size: 21px; }
+  header .tag { color: var(--muted); font-size: 14px; }
+  header .status-pill {
+    margin-left: auto; font-size: 13px; font-weight: 700; letter-spacing: .04em;
+    background: var(--blue-soft); color: var(--blue);
+    padding: 6px 14px; border-radius: 999px;
+  }
+  .layout { display: flex; gap: 22px; padding: 22px 28px; max-width: 1280px; margin: 0 auto; }
+  .main { flex: 1; min-width: 0; }
+  nav { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
+  nav button {
+    font-size: 16px; font-weight: 600; padding: 10px 20px; border: 1px solid var(--line);
+    background: var(--card); color: var(--muted); border-radius: 999px; cursor: pointer;
+  }
+  nav button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  nav button .dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--warn); margin-left: 7px; vertical-align: middle;
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 22px; margin-bottom: 16px;
+  }
+  .card h2 { font-size: 19px; margin-bottom: 12px; }
+  .card h3 { font-size: 16px; margin-bottom: 8px; }
+  .kv { display: grid; grid-template-columns: 180px 1fr; row-gap: 8px; }
+  .kv .k { color: var(--muted); }
+  .btn {
+    display: inline-block; font-size: 17px; font-weight: 700; padding: 12px 22px;
+    border-radius: 12px; border: none; cursor: pointer;
+    background: var(--accent); color: #fff;
+  }
+  .btn.secondary { background: var(--card); color: var(--accent); border: 2px solid var(--accent); }
+  .btn.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .notice {
+    background: var(--warn-soft); color: var(--warn); border-radius: 10px;
+    padding: 12px 16px; font-size: 15px; margin-bottom: 14px;
+  }
+  .good { background: var(--accent-soft); color: var(--accent); }
+  .feed { display: flex; flex-direction: column; gap: 10px; }
+  .feed-item {
+    display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px;
+    border: 1px solid var(--line); border-radius: 10px; background: #fcfbf8;
+    font-size: 15px;
+  }
+  .feed-item .chip {
+    flex-shrink: 0; font-size: 11px; font-weight: 800; letter-spacing: .05em;
+    padding: 3px 9px; border-radius: 6px; margin-top: 2px; text-transform: uppercase;
+  }
+  .chip.gemma { background: #ece4f9; color: #5b3aa6; }
+  .chip.tool { background: var(--blue-soft); color: var(--blue); }
+  .chip.state { background: var(--accent-soft); color: var(--accent); }
+  .chip.sms { background: #fdf3d7; color: #8a6d1a; }
+  .chip.adapt { background: #fde4ef; color: #a6336f; }
+  .chip.error { background: var(--warn-soft); color: var(--warn); }
+  .timeline .ev { display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .timeline .ev:last-child { border-bottom: none; }
+  .timeline .date { width: 76px; flex-shrink: 0; font-weight: 800; color: var(--accent); }
+  .timeline .past .date { color: var(--muted); }
+  .timeline .meta { color: var(--muted); font-size: 14px; }
+  .privacy { font-size: 14px; color: var(--muted); }
+  .privacy li { margin-left: 20px; }
+  /* --- Sarah's phone simulator --- */
+  .phone {
+    width: 320px; flex-shrink: 0; background: #1c1c22; border-radius: 26px;
+    padding: 16px 14px; color: #eee; align-self: flex-start; position: sticky; top: 22px;
+  }
+  .phone .phead { text-align: center; font-size: 14px; color: #aaa; margin-bottom: 10px; }
+  .phone .msgs { display: flex; flex-direction: column; gap: 8px; min-height: 120px;
+    max-height: 420px; overflow-y: auto; padding: 4px; }
+  .bubble { max-width: 85%; padding: 9px 13px; border-radius: 16px; font-size: 14px; line-height: 1.4; }
+  .bubble.in { background: #34343c; align-self: flex-start; }
+  .bubble.out { background: #2e7dd1; align-self: flex-end; }
+  .bubble .who { font-size: 11px; color: #999; margin-bottom: 3px; }
+  .phone .reply { display: flex; gap: 8px; margin-top: 12px; }
+  .phone input {
+    flex: 1; border-radius: 999px; border: none; padding: 10px 14px; font-size: 14px;
+    background: #2a2a31; color: #eee;
+  }
+  .phone .send {
+    background: #2e7dd1; border: none; color: #fff; border-radius: 999px;
+    width: 40px; height: 40px; font-size: 16px; cursor: pointer;
+  }
+  .phone .quick { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .phone .quick button {
+    background: #2a2a31; color: #ccc; border: 1px solid #3a3a44; border-radius: 999px;
+    font-size: 12px; padding: 5px 10px; cursor: pointer;
+  }
+  .spinner {
+    display: inline-block; width: 16px; height: 16px; border: 2px solid var(--line);
+    border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite;
+    vertical-align: middle; margin-right: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hidden { display: none !important; }
+  .explain {
+    background: #f4effc; border-left: 4px solid #5b3aa6; padding: 14px 16px;
+    border-radius: 8px; font-size: 15px; margin: 14px 0;
+  }
+  .explain .lbl { font-size: 12px; font-weight: 800; color: #5b3aa6; letter-spacing: .05em; }
+  footer { text-align: center; color: var(--muted); font-size: 13px; padding: 18px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">RR</div>
+  <div>
+    <h1>RuralRelay</h1>
+    <div class="tag">On-device care coordination for older adults · Powered by Gemma</div>
+  </div>
+  <div class="status-pill" id="statusPill">NEEDS_APPOINTMENT</div>
+</header>
+
+<div style="background:#fdf3d7; color:#8a6d1a; text-align:center; font-size:14px; padding:8px 16px;">
+  <b>Hosted demo mode</b> — this page replays real Gemma outputs recorded from a live on-device run
+  (GitHub Pages can't run the local model). Clone the <a href="https://github.com/mjmgerdes/ruralrelay" style="color:#8a6d1a">repo</a> to run the live agent with Ollama.
+</div>
+
+<div class="layout">
+  <div class="main">
+    <nav>
+      <button data-tab="today" class="active">Today<span class="dot" id="todayDot"></span></button>
+      <button data-tab="coordinate">Coordinate</button>
+      <button data-tab="ride">Ride</button>
+      <button data-tab="calendar">Care Calendar</button>
+      <button data-tab="profile">Profile</button>
+    </nav>
+
+    <!-- ============ TODAY ============ -->
+    <section id="tab-today">
+      <div class="card" id="needCard">
+        <h2>Cardiology follow-up due</h2>
+        <div class="kv">
+          <span class="k">Last visit</span><span>February 8</span>
+          <span class="k">Usual interval</span><span>Every 6 months</span>
+          <span class="k">Preferred physician</span><span>Regional Heart Center</span>
+          <span class="k">Distance</span><span>34 miles</span>
+        </div>
+        <p class="privacy" style="margin-top:10px">This reminder exists because Eleanor entered a recurring care plan — RuralRelay never decides what medical care someone needs.</p>
+        <div style="margin-top:16px">
+          <button class="btn" id="coordinateBtn" onclick="startCoordinate()">Coordinate appointment</button>
+        </div>
+      </div>
+      <div class="card hidden" id="doneCard">
+        <h2>You're all set 🎉</h2>
+        <p id="doneSummary"></p>
+        <div style="margin-top:12px"><button class="btn secondary" onclick="showTab('calendar')">View care calendar</button></div>
+      </div>
+    </section>
+
+    <!-- ============ COORDINATE ============ -->
+    <section id="tab-coordinate" class="hidden">
+      <div class="card">
+        <h2><span class="spinner hidden" id="coordSpinner"></span>Agent activity</h2>
+        <p class="privacy" style="margin-bottom:12px">Gemma runs locally on this device. It plans each step, calls approved tools, and interprets replies — every action below happened inside the state machine's guardrails.</p>
+        <div class="feed" id="activityFeed"><p class="privacy">No coordination started yet. Go to Today and press “Coordinate appointment.”</p></div>
+      </div>
+    </section>
+
+    <!-- ============ RIDE ============ -->
+    <section id="tab-ride" class="hidden">
+      <div class="card" id="rideWaiting">
+        <h2>Transportation</h2>
+        <p class="privacy">No transportation request in progress.</p>
+      </div>
+      <div class="card hidden" id="rideAsked">
+        <h2><span class="spinner"></span>Waiting for Sarah…</h2>
+        <p>This appointment is 34 miles from Eleanor's home. RuralRelay texted Sarah to ask if she can drive. Reply on Sarah's phone (right) to continue the story.</p>
+        <div class="notice" style="margin-top:12px">Shared with Sarah: ✓ appointment time ✓ provider location ✓ transportation request &nbsp;·&nbsp; Not shared: ✗ medical history ✗ medications ✗ insurance details</div>
+      </div>
+      <div class="card hidden" id="ridePlan">
+        <h2>Review care plan</h2>
+        <div id="planBody"></div>
+        <div class="explain hidden" id="planExplain"><div class="lbl">WHY THIS PLAN — GEMMA</div><div id="planExplainText"></div></div>
+        <div style="margin-top:14px; display:flex; gap:10px;">
+          <button class="btn" onclick="confirmPlan()">Confirm appointment and ride</button>
+          <button class="btn ghost">Try another appointment</button>
+        </div>
+      </div>
+      <div class="card hidden" id="rideConfirmed">
+        <h2>Plan confirmed ✓</h2>
+        <div id="confirmedBody"></div>
+      </div>
+    </section>
+
+    <!-- ============ CALENDAR ============ -->
+    <section id="tab-calendar" class="hidden">
+      <div class="card">
+        <h2>Care timeline</h2>
+        <div class="timeline" id="timeline"></div>
+      </div>
+    </section>
+
+    <!-- ============ PROFILE ============ -->
+    <section id="tab-profile" class="hidden">
+      <div class="card">
+        <h2>Eleanor's profile</h2>
+        <div class="kv" id="profileKv"></div>
+        <div style="margin-top:16px; display:flex; gap:10px; align-items:center;">
+          <button class="btn secondary" onclick="alert('Secure onboarding link sent to Sarah (demo).')">Share setup with Sarah</button>
+          <span class="privacy">Sends a secure onboarding link by text.</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Tell RuralRelay something in your own words</h3>
+        <p class="privacy" style="margin-bottom:10px">Gemma converts conversational answers into structured preferences — try “I don't like driving after dark and mornings are best for me.”</p>
+        <div style="display:flex; gap:8px;">
+          <input id="onboardInput" style="flex:1; font-size:16px; padding:10px 14px; border-radius:10px; border:1px solid var(--line);" placeholder="Type a preference in plain language…">
+          <button class="btn" onclick="sendOnboard()" id="onboardBtn">Interpret</button>
+        </div>
+        <div class="explain hidden" id="onboardOut" style="margin-top:12px"><div class="lbl">STRUCTURED BY GEMMA</div><pre id="onboardJson" style="font-size:13px; white-space:pre-wrap; margin-top:6px;"></pre></div>
+      </div>
+      <div class="card">
+        <h3>Privacy model</h3>
+        <p class="privacy">Eleanor's full care profile and all planning logic stay on this device — Gemma runs locally via Ollama. External services receive only the minimum information needed to complete an action Eleanor approved.</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ SARAH'S PHONE ============ -->
+  <aside class="phone">
+    <div class="phead">📱 Sarah's phone — SMS simulator<br><span style="font-size:12px">(a real Twilio webhook points at the same endpoint)</span></div>
+    <div class="msgs" id="phoneMsgs"></div>
+    <div class="reply">
+      <input id="smsInput" placeholder="Reply as Sarah…" onkeydown="if(event.key==='Enter')sendSms()">
+      <button class="send" onclick="sendSms()">➤</button>
+    </div>
+    <div class="quick">
+      <button onclick="quick('NO, I have work meetings all day Tuesday, sorry')">Busy that day</button>
+      <button onclick="quick('YES I can take her')">Can drive</button>
+      <button onclick="quick('I could drive her there but not home')">Partial</button>
+    </div>
+  </aside>
+</div>
+
+<footer>RuralRelay · Build with Gemma NYC hackathon · Decision-support for care logistics only — not diagnosis or treatment · Synthetic data</footer>
+
+<script>
+/* ===== HOSTED DEMO MODE (GitHub Pages) =====
+   Pages is static hosting: no FastAPI backend, no on-device Gemma.
+   This shim mirrors the server's state machine in the browser and replays
+   the actual Gemma outputs recorded from a live local run, so the flow,
+   timing, and copy match the real agent. Run the repo locally with Ollama
+   for live inference. */
+
+const DEMO_PROFILE = {
+  patient: { name: "Eleanor Brooks", age: 78, home_location: "Pine Ridge, Pennsylvania",
+    insurance: "Medicare", mobility_needs: ["walker"], preferred_times: ["weekday mornings"],
+    preferred_pharmacy: "Pine Ridge Pharmacy" },
+  caregiver: { name: "Sarah Brooks", relationship: "daughter", phone: "+1-555-0142" },
+  recurring_care: [{ type: "cardiology follow-up", provider: "Regional Heart Center",
+    interval_months: 6, last_visit: "2026-02-08" }]
+};
+
+const DEMO_SLOT = { date: "2026-08-11", time: "10:30 AM", day: "Tuesday",
+  provider: "Regional Heart Center", distance_miles: 34, status: "held" };
+const DEMO_VAN = { name: "Pine Ridge Rural Transit — Medical Access Van",
+  type: "accessible_transport", pickup_time: "8:55 AM", return_pickup_time: "12:15 PM" };
+const BASE_CAL = [{ date: "2026-02-08", time: "10:00 AM",
+  title: "Cardiology follow-up — Regional Heart Center", kind: "past", status: "completed" }];
+
+// Verbatim Gemma outputs captured from the recorded run.
+const REC = {
+  plan: "Plan: search_providers — Before checking availability, I must first confirm the preferred provider exists and accepts the patient's insurance.",
+  fallback: "Selected fallback: Pine Ridge Rural Transit — Medical Access Van — This option fully accommodates a walker, covers the required distance, and is free for Medicare riders.",
+  explainVan: "This plan is scheduled for a Tuesday morning, which aligns with your preferred time. The accessible transport van accommodates your walker and is covered by Medicare, ensuring both comfort and cost-effectiveness. We have set the pickup for 8:55 AM to ensure you arrive at the Regional Heart Center comfortably before your appointment.",
+  explainSarah: "This plan is scheduled for a Tuesday morning, which aligns with your preferred time, and your daughter Sarah will drive you door to door — no separate transportation needed."
+};
+
+let S = null;
+function demoReset() {
+  S = { status: "NEEDS_APPOINTMENT", activity: [], appointment: null, transport: null,
+    caregiver_reply: null, plan_explanation: "", calendar: JSON.parse(JSON.stringify(BASE_CAL)),
+    sms_outbox: [], busy: false };
+}
+demoReset();
+
+function dlog(kind, text) { S.activity.push({ kind, text }); }
+function stage(steps) { // [[delayMs, fn], ...]
+  steps.forEach(([ms, fn]) => setTimeout(fn, ms));
+}
+
+function demoCoordinate() {
+  if (S.status !== "NEEDS_APPOINTMENT" || S.busy) return { error: "not coordinatable" };
+  S.busy = true;
+  stage([
+    [1200, () => dlog("gemma", REC.plan)],
+    [2400, () => dlog("tool", "search_providers → 1 in-network match(es)")],
+    [3600, () => dlog("tool", "check_availability → Tuesday, 2026-08-11 at 10:30 AM")],
+    [4400, () => { S.appointment = DEMO_SLOT; S.status = "APPOINTMENT_HELD";
+      dlog("state", "Appointment tentatively held — nothing is booked until Eleanor confirms the complete plan."); }],
+    [5200, () => { S.status = "TRANSPORT_NEEDED";
+      dlog("state", "Appointment is 34 miles from home — transportation needed."); }],
+    [6000, () => dlog("adapt", "Sarah has accepted 25% of past ride requests, so RuralRelay will line up accessible transport as a fallback — but still asks her first per Eleanor's stored preference.")],
+    [7000, () => { S.sms_outbox.push({ to: "Sarah Brooks", phone: "+1-555-0142",
+        body: "Hi Sarah, Eleanor has a cardiology appointment available Tuesday, August 11 at 10:30 AM at Regional Heart Center. Would you be able to drive her? Reply YES or NO.",
+        time: "", via: "simulator" });
+      S.status = "CAREGIVER_CONTACTED";
+      dlog("sms", "Texted Sarah to ask about the ride. Waiting for her reply…");
+      S.busy = false; }],
+  ]);
+  return { started: true };
+}
+
+function demoCaregiverReply(text) {
+  if (S.status !== "CAREGIVER_CONTACTED") return { error: "no outstanding request" };
+  S.busy = true;
+  const t = text.toLowerCase();
+  const canDrive = /\byes\b|i can\b|sure/.test(t) && !/\bno\b|can't|cannot|busy|meeting|not home|but not/.test(t);
+  if (canDrive) {
+    stage([
+      [1500, () => { S.caregiver_reply = { text, can_drive: true };
+        dlog("gemma", "Interpreted Sarah's reply: Sarah confirmed she can drive Eleanor to the appointment."); }],
+      [2500, () => { S.transport = { name: "Sarah Brooks (caregiver)", type: "caregiver",
+          pickup_time: "9:15 AM", return_pickup_time: "after appointment" };
+        S.plan_explanation = REC.explainSarah;
+        S.status = "AWAITING_USER_CONFIRMATION";
+        dlog("state", "Sarah can drive — ready for Eleanor to review the plan."); S.busy = false; }],
+    ]);
+  } else {
+    stage([
+      [1500, () => { S.caregiver_reply = { text, can_drive: false };
+        dlog("gemma", "Interpreted Sarah's reply: Sarah is unavailable to drive Eleanor that day."); }],
+      [2300, () => { S.status = "CAREGIVER_UNAVAILABLE";
+        dlog("state", "Sarah is unavailable. Finding accessible transportation…"); }],
+      [3100, () => dlog("tool", "check_transport → 2 option(s) that accommodate a walker over 34 miles")],
+      [4000, () => { S.transport = DEMO_VAN; S.status = "TRANSPORT_FOUND"; dlog("gemma", REC.fallback); }],
+      [5000, () => { S.plan_explanation = REC.explainVan; S.status = "AWAITING_USER_CONFIRMATION";
+        dlog("state", "Complete plan ready for Eleanor's review."); S.busy = false; }],
+    ]);
+  }
+  return { received: true };
+}
+
+function demoConfirm() {
+  if (S.status !== "AWAITING_USER_CONFIRMATION") return { error: "no plan awaiting confirmation" };
+  const a = S.appointment, t = S.transport;
+  S.status = "CONFIRMED";
+  if (t.pickup_time) S.calendar.push({ date: a.date, time: t.pickup_time,
+    title: "Transportation pickup — " + t.name, kind: "transport", status: "reserved" });
+  S.calendar.push({ date: a.date, time: a.time,
+    title: "Cardiology follow-up — " + a.provider, kind: "appointment", status: "confirmed" });
+  if (t.return_pickup_time && !t.return_pickup_time.includes("after"))
+    S.calendar.push({ date: a.date, time: t.return_pickup_time,
+      title: "Return transportation pickup", kind: "transport", status: "reserved" });
+  S.calendar.push({ date: "2027-02-10", time: "",
+    title: "Cardiology follow-up window begins — auto-coordinate enabled", kind: "future", status: "scheduled" });
+  S.sms_outbox.push({ to: "Eleanor Brooks", phone: "(this device)",
+    body: `Your cardiology appointment is confirmed for ${a.day}, August 11 at ${a.time}. ${t.name} will pick you up at ${t.pickup_time}. You'll get a reminder the day before and the morning of.`, time: "", via: "simulator" });
+  S.sms_outbox.push({ to: "Sarah Brooks", phone: "+1-555-0142",
+    body: `Eleanor's cardiology appointment and ride are confirmed for ${a.day} at ${a.time}. We'll keep you posted.`, time: "", via: "simulator" });
+  dlog("state", "Plan confirmed. Calendar updated, notifications sent.");
+  return S;
+}
+
+function demoOnboarding(text) {
+  // Lightweight heuristic stand-in — live Gemma does this locally in the real app.
+  const prefs = [];
+  if (/morning/i.test(text)) prefs.push({ field: "preferred_times", value: "Mornings" });
+  if (/dark|night/i.test(text)) prefs.push({ field: "transport_preference", value: "Daytime travel only" });
+  if (!prefs.length) prefs.push({ field: "other", value: text.slice(0, 60) });
+  return { preferences: prefs,
+    summary: "Hosted demo interpretation — run the repo locally for live on-device Gemma." };
+}
+
+// Route the app's fetch calls to the in-browser demo backend.
+window.fetch = async function (url, opts) {
+  const path = url.toString().replace(/^https?:\/\/[^/]+/, "");
+  const json = data => ({ ok: true, json: async () => data });
+  await new Promise(r => setTimeout(r, 60));
+  if (path.endsWith("/state")) return json(S);
+  if (path.endsWith("/profile")) return json(DEMO_PROFILE);
+  if (path.endsWith("/calendar")) return json({ events: S.calendar });
+  if (path.endsWith("/coordinate")) return json(demoCoordinate());
+  if (path.endsWith("/caregiver-response")) return json(demoCaregiverReply(JSON.parse(opts.body).text));
+  if (path.endsWith("/confirm-plan")) return json(demoConfirm());
+  if (path.endsWith("/onboarding-note")) return json(demoOnboarding(JSON.parse(opts.body).text));
+  if (path.endsWith("/reset")) { demoReset(); return json({ reset: true }); }
+  return json({});
+};
+/* ===== end hosted demo shim ===== */
+
+let state = null;
+let activityCount = 0;
+
+function showTab(name) {
+  document.querySelectorAll('nav button').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === name));
+  ['today','coordinate','ride','calendar','profile'].forEach(t =>
+    document.getElementById('tab-' + t).classList.toggle('hidden', t !== name));
+}
+document.querySelectorAll('nav button').forEach(b =>
+  b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+async function startCoordinate() {
+  document.getElementById('coordinateBtn').disabled = true;
+  showTab('coordinate');
+  await fetch('/coordinate', { method: 'POST' });
+}
+
+async function sendSms() {
+  const input = document.getElementById('smsInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addBubble('out', text, 'Sarah');
+  await fetch('/caregiver-response', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  });
+}
+function quick(t) { document.getElementById('smsInput').value = t; sendSms(); }
+
+let localBubbles = [];
+function addBubble(dir, text, who) {
+  // Remember how many inbound messages existed when Sarah replied so the
+  // conversation renders in chronological order.
+  localBubbles.push({ dir, text, who, afterInbound: (state?.sms_outbox || []).length });
+  renderPhone();
+}
+
+function renderPhone() {
+  const el = document.getElementById('phoneMsgs');
+  const inbound = (state?.sms_outbox || []).map(m =>
+    ({ dir: 'in', text: m.body, who: 'RuralRelay → ' + m.to + (m.via === 'twilio' ? ' (Twilio)' : '') }));
+  const all = [...inbound];
+  // Insert Sarah's replies at the position they were sent (later inserts shift earlier ones).
+  [...localBubbles].reverse().forEach(b => all.splice(b.afterInbound, 0, b));
+  el.innerHTML = all.map(b =>
+    `<div class="bubble ${b.dir}"><div class="who">${b.who}</div>${b.text}</div>`).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+async function confirmPlan() {
+  await fetch('/confirm-plan', { method: 'POST' });
+  await refreshCalendar();
+}
+
+async function sendOnboard() {
+  const input = document.getElementById('onboardInput');
+  const text = input.value.trim();
+  if (!text) return;
+  document.getElementById('onboardBtn').disabled = true;
+  const r = await fetch('/onboarding-note', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  });
+  const out = await r.json();
+  document.getElementById('onboardOut').classList.remove('hidden');
+  document.getElementById('onboardJson').textContent = JSON.stringify(out, null, 2);
+  document.getElementById('onboardBtn').disabled = false;
+}
+
+function renderActivity() {
+  const feed = document.getElementById('activityFeed');
+  const items = state.activity || [];
+  if (!items.length) return;
+  feed.innerHTML = items.map(a =>
+    `<div class="feed-item"><span class="chip ${a.kind}">${a.kind}</span><span>${a.text}</span></div>`).join('');
+  if (items.length > activityCount) {
+    activityCount = items.length;
+    feed.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function renderRide() {
+  const s = state.status;
+  const show = id => ['rideWaiting','rideAsked','ridePlan','rideConfirmed'].forEach(x =>
+    document.getElementById(x).classList.toggle('hidden', x !== id));
+  if (s === 'CAREGIVER_CONTACTED') show('rideAsked');
+  else if (s === 'AWAITING_USER_CONFIRMATION' || s === 'TRANSPORT_FOUND') {
+    show('ridePlan');
+    const a = state.appointment, t = state.transport;
+    document.getElementById('planBody').innerHTML = `
+      <div class="kv">
+        <span class="k">Appointment</span><span><b>${a.provider}</b><br>${a.day}, August ${parseInt(a.date.slice(-2))} at ${a.time} · ${a.distance_miles} miles away</span>
+        <span class="k">Transportation</span><span><b>${t.name}</b><br>Pickup ${t.pickup_time} · Walker-accessible · Return pickup ${t.return_pickup_time}</span>
+        <span class="k">Notifications</span><span>Eleanor: confirmation, day-before, morning-of<br>Sarah: confirmation and status updates</span>
+      </div>`;
+    if (state.plan_explanation) {
+      document.getElementById('planExplain').classList.remove('hidden');
+      document.getElementById('planExplainText').textContent = state.plan_explanation;
+    }
+  } else if (s === 'CONFIRMED') {
+    show('rideConfirmed');
+    const a = state.appointment, t = state.transport;
+    document.getElementById('confirmedBody').innerHTML = `
+      <div class="notice good">Everything is booked. Eleanor and Sarah both received confirmations, and reminders are scheduled.</div>
+      <div class="kv">
+        <span class="k">Appointment</span><span>${a.provider} — ${a.day} at ${a.time}</span>
+        <span class="k">Ride</span><span>${t.name} — pickup ${t.pickup_time}</span>
+      </div>`;
+  } else show('rideWaiting');
+}
+
+function renderToday() {
+  const confirmed = state.status === 'CONFIRMED';
+  document.getElementById('needCard').classList.toggle('hidden', confirmed);
+  document.getElementById('doneCard').classList.toggle('hidden', !confirmed);
+  document.getElementById('todayDot').classList.toggle('hidden', confirmed);
+  if (confirmed && state.appointment) {
+    document.getElementById('doneSummary').textContent =
+      `Cardiology follow-up booked for ${state.appointment.day} at ${state.appointment.time}, with a walker-accessible ride arranged door to door.`;
+  }
+}
+
+async function refreshCalendar() {
+  const r = await fetch('/calendar');
+  const { events } = await r.json();
+  const fmt = d => {
+    const [y, m, day] = d.split('-');
+    const mo = ['','JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][parseInt(m)];
+    return `${mo} ${parseInt(day)}`;
+  };
+  document.getElementById('timeline').innerHTML = events.map(e => `
+    <div class="ev ${e.kind}">
+      <div class="date">${fmt(e.date)}</div>
+      <div><b>${e.time ? e.time + ' — ' : ''}${e.title}</b>
+      <div class="meta">${e.status}${e.kind === 'future' ? ' · Auto-coordinate: Enabled' : ''}</div></div>
+    </div>`).join('');
+}
+
+const RIDE_STATES = ['CAREGIVER_CONTACTED','CAREGIVER_UNAVAILABLE','TRANSPORT_FOUND','AWAITING_USER_CONFIRMATION'];
+let lastStatus = '';
+
+async function poll() {
+  try {
+    const r = await fetch('/state');
+    state = await r.json();
+    document.getElementById('statusPill').textContent = state.status;
+    document.getElementById('coordSpinner').classList.toggle('hidden', !state.busy);
+    renderActivity(); renderPhone(); renderRide(); renderToday();
+    // Auto-advance the visible tab at key story beats.
+    if (state.status !== lastStatus) {
+      if (state.status === 'CAREGIVER_CONTACTED') showTab('ride');
+      if (state.status === 'AWAITING_USER_CONFIRMATION') showTab('ride');
+      lastStatus = state.status;
+    }
+  } catch (e) { /* server restarting; keep polling */ }
+  setTimeout(poll, 1200);
+}
+
+async function loadProfile() {
+  const r = await fetch('/profile');
+  const p = await r.json();
+  const rows = [
+    ['Name', p.patient.name], ['Home location', p.patient.home_location],
+    ['Insurance', p.patient.insurance],
+    ['Primary caregiver', `${p.caregiver.name} (${p.caregiver.relationship})`],
+    ['Mobility need', 'Uses a walker'],
+    ['Current cardiologist', p.recurring_care[0].provider],
+    ['Recurring care', `Cardiology every ${p.recurring_care[0].interval_months} months`],
+    ['Preferred pharmacy', p.patient.preferred_pharmacy],
+  ];
+  document.getElementById('profileKv').innerHTML =
+    rows.map(([k, v]) => `<span class="k">${k}</span><span>${v}</span>`).join('');
+}
+
+loadProfile(); refreshCalendar(); poll();
+</script>
+</body>
+</html>
