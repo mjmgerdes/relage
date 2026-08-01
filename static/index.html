@@ -417,6 +417,7 @@
 
 let state = null, profile = null, config = null;
 let currentView = 'today', pinned = false, lastStatus = null;
+let lastActionsHtml = null;   // guards the Today card against poll re-renders
 
 const HUMAN_STATUS = {
   NEEDS_APPOINTMENT:          "Here to help you get to your care",
@@ -621,10 +622,10 @@ async function renderToday(){
 
   // /actions only returns cards while status is NEEDS_APPOINTMENT.
   const box = document.getElementById('actionCards');
-  if(!needs){ box.innerHTML = ''; return; }
+  if(!needs){ box.innerHTML = ''; lastActionsHtml = null; return; }
   try{
     const {cards} = await (await fetch('/actions')).json();
-    box.innerHTML = (cards || []).map(c => `
+    const html = (cards || []).map(c => `
       <div class="card">
         <span class="pill due">Due now</span>
         <h3 style="margin-top:9px">${esc(c.title)}</h3>
@@ -639,6 +640,10 @@ async function renderToday(){
         </div>
         <button class="bigbtn coordBtn" onclick="startCoordinate()">Coordinate appointment</button>
       </div>`).join('');
+    // Only touch the DOM when the content actually changed — re-rendering
+    // every poll would destroy the button mid-click and reset its disabled
+    // state after startCoordinate().
+    if(html !== lastActionsHtml){ box.innerHTML = html; lastActionsHtml = html; }
   }catch(e){ /* server restarting */ }
 }
 
