@@ -23,7 +23,7 @@
     </div>
     <div class="header-actions">
       <button class="quiet-button" type="button" onclick="showView('setup')">
-        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.42 1.42-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V20h-2v-.48A1.7 1.7 0 0 0 12.38 18a1.7 1.7 0 0 0-1.88.34l-.06.06-1.42-1.42.06-.06A1.7 1.7 0 0 0 9.42 15a1.7 1.7 0 0 0-1.56-1.03H7.4v-2h.46A1.7 1.7 0 0 0 9.42 11a1.7 1.7 0 0 0-.34-1.88l-.06-.06 1.42-1.42.06.06A1.7 1.7 0 0 0 12.38 8a1.7 1.7 0 0 0 1.03-1.56V6h2v.44A1.7 1.7 0 0 0 16.44 8a1.7 1.7 0 0 0 1.88-.34l.06-.06 1.42 1.42-.06.06A1.7 1.7 0 0 0 19.4 11a1.7 1.7 0 0 0 1.56 1.03h.44v2h-.44A1.7 1.7 0 0 0 19.4 15Z"/></svg>
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/></svg>
         Settings
       </button>
       <button class="lab-button" type="button" onclick="toggleDrawer(true)" aria-controls="drawer" aria-haspopup="dialog">
@@ -91,7 +91,7 @@
           <p class="eyebrow">Relage is coordinating</p>
           <h1 id="workTitle" tabindex="-1">Arranging your appointment and ride.</h1>
           <p class="page-lead" id="workSub">Relage pauses before booking anything.</p>
-          <div class="progress-card">
+          <div class="progress-card" data-glow>
             <div class="progress-card-head">
               <span>Live progress</span>
               <span class="working-pill"><span aria-hidden="true"></span> Working</span>
@@ -178,7 +178,7 @@
         <h1 id="scheduleTitle" tabindex="-1">Your schedule</h1>
         <p>Appointments, rides, and follow-ups in one place.</p>
       </div>
-      <article class="schedule-card">
+      <article class="schedule-card" data-scroll-stage>
         <div class="schedule-card-head"><h2>Care timeline</h2><span>All times local</span></div>
         <div class="timeline" id="timeline"></div>
       </article>
@@ -266,7 +266,7 @@
         </form>
       </div>
 
-      <article class="natural-note-card" data-reveal>
+      <article class="natural-note-card" data-reveal data-scroll-stage>
         <div>
           <p class="eyebrow">Quick note</p>
           <h2>Add a preference in plain language.</h2>

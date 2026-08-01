@@ -618,6 +618,49 @@ input:focus, select:focus, textarea:focus { border-color: var(--navy); box-shado
 .toast { border-radius: 3px; background: var(--navy-dark); }
 footer { letter-spacing: .1em; }
 
+.progress-card[data-glow] { position: relative; isolation: isolate; --glow-x: 50%; --glow-y: 0px; }
+.progress-card[data-glow]::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(260px circle at var(--glow-x) var(--glow-y), rgba(177, 138, 86, .13), transparent 68%);
+}
+.progress-card[data-glow] > * { position: relative; z-index: 1; }
+.coordination-brief {
+  display: grid;
+  grid-template-columns: 1.3fr .8fr 1fr .8fr;
+  margin: -8px -28px 10px;
+  padding: 15px 22px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(230, 225, 214, .34);
+}
+.coordination-brief > div { min-width: 0; padding: 0 14px; border-right: 1px solid var(--line); }
+.coordination-brief > div:first-child { padding-left: 0; }
+.coordination-brief > div:last-child { padding-right: 0; border-right: 0; }
+.coordination-brief span, .coordination-brief strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.coordination-brief span { margin-bottom: 3px; color: var(--ink-faint); font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.coordination-brief strong { color: var(--ink); font-size: 12px; font-weight: 700; }
+.step-copy { display: block; min-width: 0; padding-top: 3px; }
+.step-title { display: block; color: var(--ink); font-size: 16px; font-weight: 600; line-height: 1.45; }
+.step-context { display: grid; grid-template-columns: 116px minmax(0, 1fr); gap: 10px; margin-top: 7px; color: var(--ink-faint); font-size: 12px; line-height: 1.45; }
+.step-context b { color: var(--coral); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.step.current .step-context { color: var(--ink-soft); }
+.empty-progress { display: flex; align-items: center; gap: 12px; padding: 24px 0 16px; }
+.query-pulse { display: inline-flex; align-items: end; gap: 3px; width: 24px; height: 16px; }
+.query-pulse i { width: 3px; height: 6px; background: var(--gold); animation: query-bars 900ms ease-in-out infinite alternate; }
+.query-pulse i:nth-child(2) { height: 12px; animation-delay: 150ms; }
+.query-pulse i:nth-child(3) { height: 9px; animation-delay: 300ms; }
+@keyframes query-bars { to { height: 16px; opacity: .38; } }
+
+[data-scroll-stage] { transform-origin: center top; will-change: transform, opacity; transition: transform 90ms linear, opacity 140ms ease; }
+
+.timeline .ev:not(:last-child)::after { left: 120px; bottom: -22px; width: 1px; }
+.timeline-dot { border: 3px solid var(--surface); }
+.timeline .date { padding-top: 7px; }
+
 @media (max-width: 900px) {
   .site-header { grid-template-columns: 1fr auto; }
   .header-status { display: none; }
@@ -681,7 +724,7 @@ footer { letter-spacing: .1em; }
   .day-card #doneRows { padding: 22px; }
   .timeline { padding-inline: 18px; }
   .timeline .ev { grid-template-columns: 62px 30px 1fr; gap: 10px; }
-  .timeline .ev:not(:last-child)::after { left: 76px; }
+  .timeline .ev:not(:last-child)::after { left: 87px; bottom: -22px; }
   .timeline-dot { width: 30px; height: 30px; }
   .timeline b { font-size: 15px; }
   .setup-form { padding: 6px 20px 26px; border-radius: var(--radius-lg); }
@@ -701,6 +744,10 @@ footer { letter-spacing: .1em; }
   .bottom-nav button { min-width: 0; flex: 1; min-height: 54px; padding: 0 12px; }
   .toast { left: 14px; right: 14px; bottom: 82px; max-width: none; text-align: center; }
   .demo-drawer { padding: 22px 16px; }
+  .coordination-brief { grid-template-columns: 1fr 1fr; gap: 12px 0; margin-inline: -20px; padding-inline: 18px; }
+  .coordination-brief > div, .coordination-brief > div:first-child, .coordination-brief > div:last-child { padding: 0 10px; border-right: 0; }
+  .coordination-brief > div:nth-child(odd) { padding-left: 0; border-right: 1px solid var(--line); }
+  .step-context { grid-template-columns: 1fr; gap: 3px; }
   .quick { grid-template-columns: 1fr; }
   footer { padding-bottom: 110px; }
 }

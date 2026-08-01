@@ -85,6 +85,7 @@ function showView(name, pinned) {
     populateProfileForm();
     requestAnimationFrame(initRevealAnimations);
   }
+  requestAnimationFrame(updateScrollStages);
   const heading = next.querySelector('h1');
   if (heading) requestAnimationFrame(function () { heading.focus({ preventScroll: true }); });
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -264,6 +265,49 @@ function sourceChips(item) {
   return '<span class="source-chips" aria-label="Sources consulted">' + chips + '</span>';
 }
 
+function coordinationBriefHtml() {
+  const careIndex = state && Number.isInteger(state.care_index) ? state.care_index : 0;
+  const care = profile && profile.recurring_care ? profile.recurring_care[careIndex] : null;
+  const patient = profile && profile.patient ? profile.patient : {};
+  const time = patient.preferred_times && patient.preferred_times[0] ? patient.preferred_times[0] : 'Flexible';
+  const access = patient.mobility_needs && patient.mobility_needs.length ? patient.mobility_needs.join(', ') : 'Standard';
+  return '<div class="coordination-brief" aria-label="Search criteria">' +
+    '<div><span>Care</span><strong>' + esc(titleCase((care && care.type) || 'Appointment')) + '</strong></div>' +
+    '<div><span>Coverage</span><strong>' + esc(patient.insurance || 'Any network') + '</strong></div>' +
+    '<div><span>Window</span><strong>' + esc(titleCase(time)) + '</strong></div>' +
+    '<div><span>Access</span><strong>' + esc(titleCase(access)) + '</strong></div>' +
+  '</div>';
+}
+
+function stepContext(item) {
+  const patient = profile && profile.patient ? profile.patient : {};
+  const careIndex = state && Number.isInteger(state.care_index) ? state.care_index : 0;
+  const care = profile && profile.recurring_care ? profile.recurring_care[careIndex] : null;
+  const signal = String((item && item.kind) || '') + ' ' + String((item && item.text) || '');
+  const normalized = signal.toLowerCase();
+  const location = patient.home_location || 'Home area';
+  const insurance = patient.insurance || 'Insurance network';
+  const preferred = patient.preferred_times && patient.preferred_times[0] ? patient.preferred_times[0] : 'flexible timing';
+  const mobility = patient.mobility_needs && patient.mobility_needs[0] ? patient.mobility_needs[0] : 'standard access';
+  if (normalized.includes('in-network') || normalized.includes('1 in-network')) return { label: 'Coverage check', detail: insurance + ' accepted · specialty match · location verified' };
+  if (normalized.includes('search_provider')) return { label: 'Provider index', detail: insurance + ' · ' + location + ' · ' + ((care && care.type) || 'specialty care') };
+  if (normalized.includes('availability') || normalized.includes('opening')) return { label: 'Schedule scan', detail: preferred + ' · next available slot · approval required' };
+  if (normalized.includes('appointment held')) return { label: 'Temporary hold', detail: 'Time protected · no booking submitted · awaiting full plan' };
+  if (normalized.includes('mile') || normalized.includes('transport coordination')) return { label: 'Route analysis', detail: 'Home to clinic · travel time · ' + mobility + ' access' };
+  if (normalized.includes('caregiver') || normalized.includes('calling') || normalized.includes('text')) return { label: 'Caregiver handoff', detail: 'Time and place only · response monitored · accessible fallback ready' };
+  if (normalized.includes('transport') || normalized.includes('walker-accessible') || normalized.includes('medical access')) return { label: 'Ride directory', detail: mobility + ' capacity · service radius · fare coverage' };
+  if (normalized.includes('reply classified')) return { label: 'Response read', detail: 'Availability extracted locally · no medical details shared' };
+  if (normalized.includes('plan ready') || normalized.includes('complete plan')) return { label: 'Plan check', detail: 'Appointment + ride + reminders · waiting for your approval' };
+  return { label: 'Local planner', detail: String((item && item.text) || 'Checking the next coordination step') };
+}
+
+function stepContentHtml(item) {
+  const context = stepContext(item);
+  return '<span class="step-copy"><strong class="step-title">' + esc(item.friendly) + '</strong>' +
+    '<span class="step-context"><b>' + esc(context.label) + '</b><span>' + esc(context.detail) + '</span></span>' +
+    sourceChips(item) + '</span>';
+}
+
 /* Sequential step reveal: backend activity arrives in bursts, but each step
    should appear one at a time — spinning while "fetching", then checking off
    as the next lands — so the agent visibly works. */
@@ -304,7 +348,7 @@ function renderWorking() {
   }
   if (!items.length) {
     if (lastStepsKey !== 'empty') {
-      el.innerHTML = '<div class="empty-progress">Starting coordination...</div>';
+      el.innerHTML = coordinationBriefHtml() + '<div class="empty-progress"><span class="query-pulse" aria-hidden="true"><i></i><i></i><i></i></span><span>Opening the local coordination planner...</span></div>';
       lastStepsKey = 'empty';
     }
     return;
@@ -314,11 +358,11 @@ function renderWorking() {
   const key = stepsRevealed + ':' + items.length + ':' + state.busy + ':' + waiting;
   if (key === lastStepsKey) return;
   lastStepsKey = key;
-  el.innerHTML = visible.map(function (item, index) {
+  el.innerHTML = coordinationBriefHtml() + visible.map(function (item, index) {
     const isLast = index === visible.length - 1;
     const isCurrent = isLast && (pending || state.busy || waiting);
     const marker = isCurrent ? '<span class="spinner"></span>' : '✓';
-    return '<div class="step' + (isCurrent ? ' current' : '') + '"><span class="step-icon">' + marker + '</span><span>' + esc(item.friendly) + sourceChips(item) + '</span></div>';
+    return '<div class="step' + (isCurrent ? ' current' : '') + '"><span class="step-icon">' + marker + '</span>' + stepContentHtml(item) + '</div>';
   }).join('');
   el.scrollTop = el.scrollHeight;
 }
@@ -345,7 +389,7 @@ function planRowsHtml() {
 
 function stepsRecapHtml() {
   return ((state && state.activity) || []).filter(function (item) { return item.friendly; }).map(function (item) {
-    return '<div class="step"><span class="step-icon">✓</span><span>' + esc(item.friendly) + sourceChips(item) + '</span></div>';
+    return '<div class="step"><span class="step-icon">✓</span>' + stepContentHtml(item) + '</div>';
   }).join('');
 }
 
@@ -823,6 +867,40 @@ function initSetupScrollSpy() {
 }
 
 let scrollTicking = false;
+let pointerGlowReady = false;
+
+function initPointerGlow() {
+  if (pointerGlowReady || window.matchMedia('(pointer: coarse)').matches) return;
+  pointerGlowReady = true;
+  document.addEventListener('pointermove', function (event) {
+    document.querySelectorAll('[data-glow]').forEach(function (element) {
+      const rect = element.getBoundingClientRect();
+      element.style.setProperty('--glow-x', (event.clientX - rect.left) + 'px');
+      element.style.setProperty('--glow-y', (event.clientY - rect.top) + 'px');
+    });
+  }, { passive: true });
+}
+
+function updateScrollStages() {
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.querySelectorAll('[data-scroll-stage]').forEach(function (element) {
+    if (reduced || element.offsetParent === null) {
+      element.style.transform = '';
+      element.style.opacity = '';
+      return;
+    }
+    const rect = element.getBoundingClientRect();
+    const start = window.innerHeight * .68;
+    const end = window.innerHeight * .12;
+    const progress = Math.max(0, Math.min(1, (start - rect.top) / Math.max(start - end, 1)));
+    const rotate = (1 - progress) * 6;
+    const scale = .965 + (progress * .035);
+    const translate = (1 - progress) * 26;
+    element.style.transform = 'perspective(1000px) translateY(' + translate.toFixed(2) + 'px) rotateX(' + rotate.toFixed(2) + 'deg) scale(' + scale.toFixed(4) + ')';
+    element.style.opacity = (.78 + (progress * .22)).toFixed(3);
+  });
+}
+
 function updateScrollEffects() {
   const root = document.documentElement;
   const max = Math.max(root.scrollHeight - window.innerHeight, 1);
@@ -830,6 +908,7 @@ function updateScrollEffects() {
   document.getElementById('scrollProgress').style.transform = 'scaleX(' + progress + ')';
   document.body.classList.toggle('page-scrolled', window.scrollY > 36);
   updateSetupScrollSpy();
+  updateScrollStages();
   scrollTicking = false;
 }
 
@@ -908,6 +987,7 @@ async function boot() {
   showView('setup', true);
   initSetupScrollSpy();
   initRevealAnimations();
+  initPointerGlow();
   updateScrollEffects();
   poll(false);
 }
