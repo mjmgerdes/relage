@@ -124,8 +124,10 @@ full profile and includes a free-text box Gemma structures on the spot.
 ollama pull gemma4 && ollama pull gemma3:4b
 ollama serve
 
-# 2. Server
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+# 2. Server — needs Python 3.10+ (server.py/tools.py use `dict | None`).
+# macOS ships 3.9, so name the interpreter explicitly rather than `python3`:
+python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python --version          # sanity check: must be 3.10 or newer
 .venv/bin/uvicorn server:app --port 8787
 
 # 3. Open http://localhost:8787
