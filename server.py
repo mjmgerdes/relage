@@ -240,9 +240,29 @@ def _coordinate_worker():
                        PROFILE["caregiver"]["phone"], sms_body,
                        STATE["sms_outbox"])
         STATE["status"] = "CAREGIVER_CONTACTED"
-        log("sms", f"Texted {cg} to ask about the ride. Waiting for reply…",
-            friendly=f"We texted {cg} to ask if she can drive you. "
-                     "Waiting to hear back…")
+
+        voice_ready = (tools.twilio_configured()
+                       and _os.environ.get("BASE_URL")
+                       and _os.environ.get("CAREGIVER_PHONE"))
+        if voice_ready:
+            # Voice is the primary channel: call the caregiver's real phone.
+            # The SMS above still lands in the simulator as the paper trail.
+            try:
+                STATE["call_attempts"] = 0
+                _pregenerate_tts()
+                _place_caregiver_call()
+                log("sms", f"Also queued the ask as a text for {cg}.",
+                    friendly=f"We're calling {cg} to ask if she can drive "
+                             "you. Waiting for her to pick up…")
+            except Exception as e:
+                log("error", f"Auto-call failed: {e}",
+                    friendly=f"Couldn't reach {cg} by phone — we texted "
+                             "instead.")
+        else:
+            log("sms", f"Texted {cg} to ask about the ride. Waiting for "
+                       "reply…",
+                friendly=f"We texted {cg} to ask if she can drive you. "
+                         "Waiting to hear back…")
     except Exception as e:
         log("error", f"Coordination error: {e}")
     finally:
@@ -501,11 +521,48 @@ def _speak(key: str) -> str:
     return f'<Say voice="Polly.Joanna-Neural">{text}</Say>'
 
 
+def _schedule_redial(reason: str):
+    """Redial after a short pause if attempts remain and we're still waiting."""
+    if STATE.get("call_attempts", 0) >= MAX_CALL_ATTEMPTS:
+        log("call", f"{reason} — max attempts reached.",
+            friendly="Couldn't reach them by phone — the text is still out.")
+        return
+    cg = PROFILE["caregiver"]["name"].split()[0]
+    log("call", f"{reason} — redialing in {REDIAL_DELAY_S}s",
+        friendly=f"{cg} didn't pick up. Trying again in a moment…")
+
+    def _redial():
+        import time
+        time.sleep(REDIAL_DELAY_S)
+        if STATE["status"] == "CAREGIVER_CONTACTED":
+            try:
+                _place_caregiver_call()
+            except Exception as e:
+                log("error", f"Redial failed: {e}")
+
+    threading.Thread(target=_redial, daemon=True).start()
+
+
+VOICEMAIL_MARKERS = ("voice messaging system", "voicemail", "mailbox",
+                     "leave a message", "leave your message", "is not "
+                     "available", "after the tone", "after the beep",
+                     "record your message")
+
+
 @app.post("/voice-twiml")
-def voice_twiml(retry: int = 0):
+async def voice_twiml(request: Request, retry: int = 0):
     """TwiML Twilio fetches when the caregiver answers: ask the question,
     gather the spoken reply. If nothing is heard, re-prompt once (retry=1)
-    before giving up, so a slow pickup doesn't end the call."""
+    before giving up. Machine pickups (AnsweredBy) are hung up and redialed
+    so a voicemail greeting is never treated as the caregiver's answer."""
+    form = await request.form()
+    answered_by = form.get("AnsweredBy", "")
+    if answered_by.startswith("machine") or answered_by == "fax":
+        _schedule_redial(f"Voicemail answered ({answered_by})")
+        return _Response(
+            content='<?xml version="1.0" encoding="UTF-8"?>'
+                    '<Response><Hangup/></Response>',
+            media_type="text/xml")
     if retry:
         fallback = _speak("giveup")
     else:
@@ -528,6 +585,14 @@ async def voice_result(request: Request):
     form = await request.form()
     text = form.get("SpeechResult", "")
     cg = PROFILE["caregiver"]["name"].split()[0]
+    # Second line of defense: a voicemail greeting that slipped past AMD
+    # must never be interpreted as the caregiver's answer.
+    if text and any(m in text.lower() for m in VOICEMAIL_MARKERS):
+        _schedule_redial("Transcript looks like voicemail")
+        return _Response(
+            content='<?xml version="1.0" encoding="UTF-8"?>'
+                    '<Response><Hangup/></Response>',
+            media_type="text/xml")
     if text and STATE["status"] == "CAREGIVER_CONTACTED":
         STATE["sms_outbox"].append({
             "to": "Relage", "phone": "", "time": "",

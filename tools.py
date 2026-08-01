@@ -145,7 +145,12 @@ def place_call(to_phone: str, twiml_url: str,
     from_num = os.environ["TWILIO_FROM"]
     url = f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Calls.json"
     params = {"To": to_phone, "From": from_num, "Url": twiml_url,
-              "Method": "POST", "Timeout": "25"}
+              "Method": "POST", "Timeout": "25",
+              # Detect voicemail so a greeting never gets interpreted as
+              # the caregiver's answer; AnsweredBy arrives with the TwiML
+              # request and machine pickups are hung up + redialed.
+              "MachineDetection": "Enable",
+              "MachineDetectionTimeout": "5"}
     if status_callback:
         params["StatusCallback"] = status_callback
         params["StatusCallbackMethod"] = "POST"

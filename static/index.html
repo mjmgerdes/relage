@@ -386,7 +386,9 @@ function renderWorking() {
   document.getElementById('workTitle').textContent =
     waiting ? `Waiting to hear from ${cgFirst()}…` : 'Working on it…';
   document.getElementById('workSub').textContent = waiting
-    ? `We texted ${cgFirst()} about your ride. You don't need to do anything.`
+    ? (config?.voice
+        ? `We're calling ${cgFirst()}'s phone about your ride. You don't need to do anything.`
+        : `We texted ${cgFirst()} about your ride. You don't need to do anything.`)
     : "This takes a moment. You don't need to do anything.";
 }
 
