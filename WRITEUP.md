@@ -1,4 +1,4 @@
-# RuralRelay
+# Relage
 
 ## An on-device care coordination agent for older adults, powered by Gemma
 
@@ -25,9 +25,9 @@ are hit hardest.
 **Healthcare access is not whether a provider exists. It is whether the
 patient can actually get through the door.**
 
-### What RuralRelay does
+### What Relage does
 
-RuralRelay is a care-access orchestration agent. It turns a healthcare need
+Relage is a care-access orchestration agent. It turns a healthcare need
 into an appointment the patient can actually attend: it finds a feasible
 in-network appointment, tentatively holds it, coordinates transportation with
 the caregiver by SMS, interprets the reply, adapts when the caregiver is
@@ -37,37 +37,32 @@ confirmation, the care timeline updates and confirmations and reminders go
 out to both patient and caregiver.
 
 It is decision-support for **logistics only**. The "cardiology follow-up due"
-card exists because Eleanor entered a six-month recurring plan — RuralRelay
+card exists because Eleanor entered a six-month recurring plan — Relage
 never infers what medical care someone needs, never diagnoses, and never
 recommends treatment. All data is synthetic.
 
 ### How Gemma is core
 
-All inference runs locally through Ollama (`gemma4:latest`). Eleanor's full
-care profile and all planning logic stay on-device; the only things that ever
-leave are the minimum fields needed for an approved action (Sarah receives an
-appointment time and place — never medical history, medications, or insurance
-details).
+All inference runs locally through Ollama. Eleanor's full care profile and
+all planning logic stay on-device; the only things that ever leave are the
+minimum fields needed for an approved action (Sarah receives an appointment
+time and place — never medical history, medications, or insurance details).
 
-Gemma is central in five places (`gemma.py`):
+We decompose coordination into five subtasks and **route each to the
+smallest Gemma that does it well** (`gemma.py`):
 
-1. **Onboarding interpretation.** Conversational answers become structured
-   preferences: "I don't like driving after dark and mornings are best for
-   me" → `preferred_times: mornings`, `transport_preference: daytime travel
-   only` — reviewable by the patient.
-2. **Action planning.** At each state, Gemma chooses the next tool
-   (provider search, availability check, caregiver outreach, transport
-   search) from the set of legal transitions, with a one-sentence rationale
-   shown in the agent activity feed.
-3. **Response interpretation.** Sarah's free-text reply — "I have work
-   meetings all day Tuesday, sorry," or "I could drive her there but not
-   home" — becomes structured availability (`can_drive`, `partial`,
-   `constraint`).
-4. **Constraint-aware replanning.** When Sarah declines, Gemma selects among
-   transport options given the walker requirement and 34-mile distance, and
-   explains the choice.
-5. **Patient explanation.** Before confirmation, Gemma explains in plain
-   language why the proposed plan fits Eleanor's stated preferences.
+| # | Subtask | Model | Why |
+|---|---------|-------|-----|
+| 1 | Onboarding interpretation — free text → structured preferences | gemma3 4B | constrained JSON extraction, interactive latency |
+| 2 | Action planning — next tool from the legal transitions | gemma 4 8B | reasoning over state + options |
+| 3 | Response interpretation — caregiver reply (typed or spoken) → `can_drive`/`partial`/`constraint` | gemma3 4B | latency-critical: runs right after the caregiver answers (~1–2 s) |
+| 4 | Constraint-aware replanning — pick fallback transport given walker + 34 miles | gemma 4 8B | multi-option tradeoff |
+| 5 | Patient explanation — why this plan fits her preferences | gemma 4 8B | prose quality |
+
+Both tiers are warmed at server startup and kept resident, so the first live
+call has no cold-start. The technical activity feed stamps every inference
+with its model and latency (e.g. `[gemma3:4b 1.9s]`), making the routing
+visible to judges in real time.
 
 ### Architecture
 
@@ -94,16 +89,19 @@ or take an illegal action. This makes the agent feel robust rather than
 improvised: the LLM plans and interprets; the machine guarantees safety and
 progress.
 
-**The caregiver loop is a real webhook.** The SMS conversation runs through a
+**The caregiver loop reaches a real phone.** The conversation runs through a
 `/caregiver-response` endpoint. In the demo UI, an embedded "Sarah's phone"
-simulator posts to it — which keeps the live demo deterministic and free of
-external dependencies — but the same endpoint accepts Twilio's form-encoded
-inbound webhook unchanged, and outbound messages route through real Twilio
-SMS when credentials are configured. The agent genuinely reacts to an
-external, asynchronous human reply mid-workflow.
+simulator posts to it — which keeps the demo deterministic — but the same
+endpoint accepts Twilio's form-encoded inbound webhook unchanged. And because
+US carriers block SMS from unregistered numbers (A2P 10DLC), we added a
+Twilio Voice channel: Relage places a real call to the caregiver's phone,
+asks the question with TTS, and feeds the speech transcription into the same
+Gemma interpretation path. In live testing, a spoken "No, I've work that day"
+was transcribed, interpreted as a decline, and the agent replanned to the
+accessible van — a real phone, a real human answer, mid-workflow.
 
 **Adaptation is transparent, not magical.** We do not claim to have trained a
-personalized model in a day. RuralRelay keeps a visible preference score —
+personalized model in a day. Relage keeps a visible preference score —
 Sarah has accepted 1 of her last 4 ride requests, while accessible transport
 has worked 3 of 3 times — and adapts its coordination order accordingly:
 it still asks Sarah first (Eleanor's stored preference keeps the user in
@@ -132,10 +130,12 @@ complete plan that Eleanor — always — confirms herself.
   machine with per-state allowed tools, JSON-constrained outputs, and
   deterministic fallbacks made the demo dependable without making Gemma
   decorative — it still makes every interpretive and planning decision.
-- **Latency.** A 9.6 GB local model takes seconds per call. We kept Gemma
-  calls to the five decision points, cached nothing patient-identifying, and
-  built the UI around a live activity feed so inference time reads as the
-  agent visibly working.
+- **Latency.** An 8B local model takes seconds per call. We kept Gemma calls
+  to the five decision points, routed the latency-critical extractions to the
+  4B tier, pre-warmed both models at startup, and built the UI around a live
+  activity feed so remaining inference time reads as the agent visibly
+  working. Call audio is likewise pre-generated (ElevenLabs TTS, cached mp3)
+  at dial time so the answered phone speaks instantly.
 - **Scope discipline.** The full vision includes preventive-care planning,
   provider discovery, and post-discharge pharmacy pickup. We cut all of it
   and built one complete loop for one synthetic patient — because a finished
@@ -146,7 +146,7 @@ complete plan that Eleanor — always — confirms herself.
 On-device Gemma is not a gimmick here: care logistics touch the most
 sensitive facts about a person's life — where they live, who cares for them,
 how they move, what care they receive. A cloud agent would leak all of that
-by design. RuralRelay's split — profile and planning local, minimum-necessary
+by design. Relage's split — profile and planning local, minimum-necessary
 fields shared per approved action — is an architecture that only works with a
 capable local model, and Gemma 4's constrained-JSON planning and
 natural-language interpretation were strong enough to carry all five roles.

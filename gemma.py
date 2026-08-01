@@ -1,29 +1,54 @@
-"""Gemma interface for RuralRelay.
+"""Gemma interface for Relage.
 
-All model inference runs locally through Ollama (default: gemma4). The
-application never sends the patient profile to a cloud model — this module is
-the only place inference happens, and it talks to localhost.
+All model inference runs locally through Ollama. The application never sends
+the patient profile to a cloud model — this module is the only place
+inference happens, and it talks to localhost.
+
+Model routing
+-------------
+Each subtask runs on the smallest Gemma that does it well, so the demo stays
+responsive without giving up planning quality:
+
+  FAST  gemma3:4b (4.3B)  — structured extraction under latency pressure:
+        interpreting a caregiver's reply while they're on the line, and
+        interactive onboarding interpretation. These are constrained
+        JSON-extraction tasks a 4B model handles reliably.
+  DEEP  gemma4 (8B)       — planning, constraint-aware replanning, and the
+        patient-facing explanation, where reasoning over options and prose
+        quality matter and a background second of extra latency is fine.
+
+Both models are warmed at server startup (kept resident via keep_alive) so
+the first live call has no cold-start penalty. Every call records its model
+and latency in `last_meta` for the technical activity feed.
 
 Gemma is used in five places:
-  1. interpret_onboarding  — free-text answers -> structured preferences
-  2. plan_next_action      — choose the next tool given coordination state
-  3. interpret_reply       — caregiver SMS text -> structured availability
-  4. replan                — react when a caregiver or option falls through
-  5. explain_plan          — plain-language explanation of the proposed plan
+  1. interpret_onboarding  — free-text answers -> structured preferences  [FAST]
+  2. plan_next_action      — choose the next tool given coordination state [DEEP]
+  3. interpret_reply       — caregiver reply -> structured availability    [FAST]
+  4. replan                — react when a caregiver or option falls through [DEEP]
+  5. explain_plan          — plain-language explanation of the plan        [DEEP]
 
-Every Gemma output is JSON-constrained and validated by the caller. If the
-model returns something invalid, callers fall back to deterministic logic so
-the coordination state machine never stalls.
+Every output is JSON-constrained and validated by the caller. If the model
+returns something invalid, callers fall back to deterministic logic so the
+coordination state machine never stalls.
 """
 
 import json
+import os
+import time
+import threading
 import urllib.request
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
-MODEL = "gemma4:latest"
+MODEL_FAST = os.environ.get("GEMMA_FAST", "gemma3:4b")
+MODEL_DEEP = os.environ.get("GEMMA_DEEP", "gemma4:latest")
+
+# Metadata of the most recent call: {"model", "ms", "task"} — surfaced in the
+# technical activity feed so judges can see the routing live.
+last_meta = {}
 
 SYSTEM = (
-    "You are the planning core of RuralRelay, a care-access coordination "
+    "You are the planning core of Relage, a care-access coordination "
     "agent for older adults in rural areas. You handle logistics only: "
     "appointments, transportation, caregiver outreach, reminders. You never "
     "diagnose, recommend medical care, or give treatment advice. "
@@ -31,28 +56,46 @@ SYSTEM = (
 )
 
 
-def _chat(prompt: str, timeout: int = 60) -> dict:
-    """Send one JSON-constrained chat request to local Gemma via Ollama."""
+def _chat(prompt: str, model: str, task: str, timeout: int = 90) -> dict:
+    """One JSON-constrained chat request to a local Gemma via Ollama."""
+    global last_meta
     body = json.dumps({
-        "model": MODEL,
+        "model": model,
         "messages": [
             {"role": "system", "content": SYSTEM},
             {"role": "user", "content": prompt},
         ],
         "format": "json",
         "stream": False,
+        "keep_alive": "60m",
         "options": {"temperature": 0.1},
     }).encode()
     req = urllib.request.Request(
         OLLAMA_URL, data=body, headers={"Content-Type": "application/json"}
     )
+    t0 = time.time()
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         data = json.load(resp)
+    last_meta = {"model": model, "ms": int((time.time() - t0) * 1000),
+                 "task": task}
     return json.loads(data["message"]["content"])
 
 
+def warm_up():
+    """Load both models into memory (background) so the first real call has
+    no cold-start. keep_alive holds them resident for the demo."""
+    def _load(model):
+        try:
+            _chat('Respond with JSON: {"ok": true}', model, f"warmup:{model}",
+                  timeout=300)
+        except Exception:
+            pass
+    for m in (MODEL_FAST, MODEL_DEEP):
+        threading.Thread(target=_load, args=(m,), daemon=True).start()
+
+
 def interpret_onboarding(free_text: str) -> dict:
-    """Convert a conversational onboarding answer into structured preferences."""
+    """[FAST] Conversational onboarding answer -> structured preferences."""
     return _chat(
         "A patient or caregiver said during onboarding:\n"
         f'"{free_text}"\n\n'
@@ -60,41 +103,42 @@ def interpret_onboarding(free_text: str) -> dict:
         '{"preferences": [{"field": "<one of: preferred_times, mobility_needs, '
         'transport_preference, caregiver_availability, other>", '
         '"value": "<short normalized value>"}], '
-        '"summary": "<one sentence restating what was learned>"}'
-    )
+        '"summary": "<one sentence restating what was learned>"}',
+        MODEL_FAST, "interpret_onboarding")
 
 
 def plan_next_action(state: str, context: dict, allowed_tools: list) -> dict:
-    """Choose the next tool call given the current coordination state.
-
-    The state machine passes only the tools that are valid transitions from
-    the current state, so Gemma plans within guardrails.
-    """
+    """[DEEP] Choose the next tool call given the coordination state. The
+    state machine passes only the tools that are valid transitions, so Gemma
+    plans within guardrails."""
     return _chat(
         f"Coordination state: {state}\n"
         f"Context:\n{json.dumps(context, indent=2)}\n\n"
         f"Allowed next tools: {allowed_tools}\n\n"
         "Pick the single best next tool and say why in one sentence. "
         'Respond with JSON: {"tool": "<one allowed tool>", '
-        '"reason": "<one sentence>"}'
-    )
+        '"reason": "<one sentence>"}',
+        MODEL_DEEP, "plan_next_action")
 
 
-def interpret_reply(sms_text: str, request_context: str) -> dict:
-    """Convert a caregiver's free-text SMS reply into structured availability."""
+def interpret_reply(reply_text: str, request_context: str) -> dict:
+    """[FAST] Caregiver's free-text (or transcribed spoken) reply ->
+    structured availability. Latency-critical: runs right after the caregiver
+    answers, while the patient watches the screen."""
     return _chat(
-        f"We texted a caregiver: \"{request_context}\"\n"
-        f"The caregiver replied: \"{sms_text}\"\n\n"
+        f"We asked a caregiver: \"{request_context}\"\n"
+        f"The caregiver replied: \"{reply_text}\"\n\n"
         "Interpret the reply. Respond with JSON:\n"
         '{"can_drive": true|false, '
         '"partial": true|false, '
         '"constraint": "<any stated constraint, or empty string>", '
-        '"summary": "<one sentence for the patient dashboard>"}'
-    )
+        '"summary": "<one sentence for the patient dashboard>"}',
+        MODEL_FAST, "interpret_reply")
 
 
 def replan(failed_step: str, context: dict, options: list) -> dict:
-    """Pick a fallback when the preferred option falls through."""
+    """[DEEP] Pick a fallback when the preferred option falls through,
+    weighing mobility needs and distance across the options."""
     return _chat(
         f"The step '{failed_step}' fell through.\n"
         f"Context:\n{json.dumps(context, indent=2)}\n"
@@ -102,16 +146,16 @@ def replan(failed_step: str, context: dict, options: list) -> dict:
         "Choose the best fallback for this patient given mobility needs and "
         "distance. Respond with JSON:\n"
         '{"choice_index": <0-based index into options>, '
-        '"reason": "<one sentence>"}'
-    )
+        '"reason": "<one sentence>"}',
+        MODEL_DEEP, "replan")
 
 
 def explain_plan(plan: dict, profile: dict) -> dict:
-    """Explain the proposed plan in plain language for the patient."""
+    """[DEEP] Explain the proposed plan in plain, warm language."""
     return _chat(
         f"Proposed care plan:\n{json.dumps(plan, indent=2)}\n"
         f"Patient preferences: {json.dumps(profile.get('patient', {}))}\n\n"
         "Explain in 2-3 warm, plain sentences why this plan fits the "
         "patient's needs and preferences. No medical advice. "
-        'Respond with JSON: {"explanation": "<2-3 sentences>"}'
-    )
+        'Respond with JSON: {"explanation": "<2-3 sentences>"}',
+        MODEL_DEEP, "explain_plan")

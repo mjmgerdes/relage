@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RuralRelay</title>
+<title>Relage</title>
 <style>
   :root {
     --bg: #faf8f3; --card: #ffffff; --ink: #26262e; --muted: #5f5f6a;
@@ -133,7 +133,7 @@
 <header>
   <div class="logo">RR</div>
   <div>
-    <h1>RuralRelay</h1>
+    <h1>Relage</h1>
     <div class="sub" id="statusHuman">Here to help you get to your care</div>
   </div>
   <div class="hbtns">
@@ -268,12 +268,14 @@
     <button onclick="quick('YES I can take her')">Can drive</button>
     <button onclick="quick('I could drive her there but not home')">Partial</button>
   </div>
+  <button class="rbtn" id="callBtn" style="display:none; background:#1f6f5c; color:#fff; border-color:#1f6f5c;"
+    onclick="callCaregiver()">📞 Call caregiver's real phone instead</button>
   <h3>⚙️ Agent activity (technical)</h3>
   <div class="techfeed" id="techFeed"></div>
   <button class="rbtn" onclick="resetDemo()">↺ Reset demo</button>
 </aside>
 
-<footer>RuralRelay · On-device Gemma · Care logistics only — not diagnosis or treatment · Synthetic data</footer>
+<footer>Relage · On-device Gemma · Care logistics only — not diagnosis or treatment · Synthetic data</footer>
 
 <script>
 let state = null, profile = null, config = null;
@@ -333,12 +335,22 @@ async function sendSms() {
   });
 }
 function quick(t) { document.getElementById('smsInput').value = t; sendSms(); }
+
+async function callCaregiver() {
+  const btn = document.getElementById('callBtn');
+  btn.disabled = true; btn.textContent = '📞 Calling…';
+  const r = await fetch('/call-caregiver', { method: 'POST' });
+  if (!r.ok) { btn.textContent = '📞 Call failed — check .env'; }
+  else { btn.textContent = '📞 Ringing… answer and speak your reply'; }
+  setTimeout(() => { btn.disabled = false;
+    btn.textContent = "📞 Call caregiver's real phone instead"; }, 15000);
+}
 function cgFirst() { return (profile?.caregiver?.name || 'Caregiver').split(' ')[0]; }
 
 function renderPhone() {
   const el = document.getElementById('phoneMsgs');
   const inbound = (state?.sms_outbox || []).map(m =>
-    ({ dir: 'in', text: m.body, who: 'RuralRelay → ' + m.to + (m.via === 'twilio' ? ' · real SMS ✓' : '') }));
+    ({ dir: 'in', text: m.body, who: 'Relage → ' + m.to + (m.via === 'twilio' ? ' · real SMS ✓' : '') }));
   const all = [...inbound];
   [...localBubbles].reverse().forEach(b => all.splice(b.afterInbound, 0, b));
   el.innerHTML = all.map(b =>
@@ -500,6 +512,8 @@ async function poll() {
     document.getElementById('statusHuman').textContent =
       HUMAN_STATUS[state.status] || '';
     renderPhone(); renderTech();
+    document.getElementById('callBtn').style.display =
+      (state.status === 'CAREGIVER_CONTACTED' && config?.voice) ? 'block' : 'none';
     if (state.status !== lastStatus) {
       lastStatus = state.status; userPinned = false;
     }
@@ -526,7 +540,9 @@ async function loadConfig() {
   try {
     const r = await fetch('/config');
     config = await r.json();
-    document.getElementById('twStatus').innerHTML = config.twilio
+    document.getElementById('twStatus').innerHTML = config.voice
+      ? `🟢 <b>Real voice on</b> — Relage can call ${config.voice_to}. SMS shown in simulator (US carriers block texts from unregistered numbers).`
+      : config.twilio
       ? `🟢 <b>Real SMS on</b> — texting ${config.caregiver_phone} via Twilio`
       : '⚪ Simulator mode — set TWILIO_* env vars (or .env) for real SMS';
   } catch (e) {}

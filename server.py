@@ -1,4 +1,4 @@
-"""RuralRelay server: care coordination state machine driven by on-device Gemma.
+"""Relage server: care coordination state machine driven by on-device Gemma.
 
 Run:  uvicorn server:app --reload --port 8000   (or: python server.py)
 Open: http://localhost:8000
@@ -25,7 +25,7 @@ import tools
 
 ROOT = Path(__file__).parent
 
-app = FastAPI(title="RuralRelay")
+app = FastAPI(title="Relage")
 
 with open(ROOT / "data" / "profile.json") as f:
     PROFILE = json.load(f)
@@ -58,6 +58,16 @@ ALLOWED = {
     "TRANSPORT_NEEDED": ["text_caregiver", "check_transport"],
     "CAREGIVER_UNAVAILABLE": ["check_transport"],
 }
+
+
+# Warm both Gemma tiers at startup so the first live call has no cold-start.
+gemma.warm_up()
+
+
+def gmeta() -> str:
+    """Model + latency tag for the technical feed, e.g. ' [gemma3:4b 1.2s]'."""
+    m = gemma.last_meta
+    return f" [{m.get('model', '?')} {m.get('ms', 0) / 1000:.1f}s]" if m else ""
 
 
 def log(kind: str, text: str, detail: dict | None = None,
@@ -99,8 +109,14 @@ async def update_profile(request: Request):
 @app.get("/config")
 def get_config():
     """UI feature flags: whether outbound SMS is really going through Twilio."""
+    import os
     import tools as t
-    return {"twilio": t.twilio_configured(),
+    voice = bool(t.twilio_configured() and os.environ.get("BASE_URL")
+                 and os.environ.get("CAREGIVER_PHONE"))
+    sms = bool(t.twilio_configured()
+               and not os.environ.get("TWILIO_SMS_DISABLED"))
+    return {"twilio": sms, "voice": voice,
+            "voice_to": os.environ.get("CAREGIVER_PHONE", ""),
             "caregiver_phone": PROFILE["caregiver"].get("phone", "")}
 
 
@@ -135,8 +151,8 @@ async def onboarding_note(request: Request):
     preferences the patient can review."""
     body = await request.json()
     result = gemma.interpret_onboarding(body.get("text", ""))
-    log("gemma", f"Interpreted onboarding note: {result.get('summary', '')}",
-        result)
+    log("gemma", f"Interpreted onboarding note: "
+                 f"{result.get('summary', '')}{gmeta()}", result)
     return result
 
 
@@ -164,7 +180,7 @@ def _coordinate_worker():
                      "preferred_provider": care["provider"],
                      "location": patient["home_location"]},
             default="search_providers")
-        log("gemma", f"Plan: {plan['tool']} — {plan['reason']}", plan,
+        log("gemma", f"Plan: {plan['tool']} — {plan['reason']}{gmeta()}", plan,
             friendly=f"Finding a doctor who takes {patient['insurance']}…")
 
         specialty = ("cardiology" if "cardio" in care["type"].lower()
@@ -197,14 +213,14 @@ def _coordinate_worker():
             friendly=f"That office is {slot['distance_miles']} miles away, "
                      "so let's sort out your ride.")
 
-        # -- Adaptive preference logic: RuralRelay adapts its coordination
+        # -- Adaptive preference logic: Relage adapts its coordination
         # order based on prior outcomes while keeping the user in control.
         rate = caregiver_acceptance_rate()
         if rate >= 0.3:
             order_note = "Asking Sarah first (her past acceptance suggests she often can)."
         else:
             order_note = (f"Sarah has accepted {rate:.0%} of past ride requests, "
-                          "so RuralRelay will line up accessible transport as a "
+                          "so Relage will line up accessible transport as a "
                           "fallback — but still asks her first per Eleanor's "
                           "stored preference.")
         log("adapt", order_note, PROFILE["transport_preferences"])
@@ -263,8 +279,8 @@ def _caregiver_worker(text: str):
             text, f"Can you drive {first} to her {slot['time']} appointment "
                   f"on {slot['day']}?")
         STATE["caregiver_reply"] = {"text": text, **parsed}
-        log("gemma", f"Interpreted {cg}'s reply: {parsed['summary']}", parsed,
-            friendly=f"{cg} answered: {parsed['summary']}")
+        log("gemma", f"Interpreted {cg}'s reply: {parsed['summary']}{gmeta()}",
+            parsed, friendly=f"{cg} answered: {parsed['summary']}")
 
         if parsed.get("can_drive") and not parsed.get("partial"):
             STATE["transport"] = {"name": f"{PROFILE['caregiver']['name']} "
@@ -295,7 +311,8 @@ def _caregiver_worker(text: str):
             STATE["transport"] = options[pick["choice_index"]]
             STATE["status"] = "TRANSPORT_FOUND"
             log("gemma", f"Selected fallback: "
-                         f"{STATE['transport']['name']} — {pick['reason']}",
+                         f"{STATE['transport']['name']} — "
+                         f"{pick['reason']}{gmeta()}",
                 pick,
                 friendly=f"Found one: {STATE['transport']['name']}.")
 
@@ -304,8 +321,9 @@ def _caregiver_worker(text: str):
             {"appointment": STATE["appointment"],
              "transport": STATE["transport"]}, PROFILE)
         STATE["plan_explanation"] = expl.get("explanation", "")
+        log("gemma", f"Wrote plan explanation{gmeta()}")
         STATE["status"] = "AWAITING_USER_CONFIRMATION"
-        log("state", "Complete plan ready for Eleanor's review.")
+        log("state", "Complete plan ready for review.")
     except Exception as e:
         log("error", f"Reply handling error: {e}")
     finally:
@@ -366,6 +384,164 @@ def get_calendar():
     return {"events": STATE["calendar"]}
 
 
+# ------------------------------------------------------------ voice channel
+# SMS from unregistered US local numbers is carrier-blocked (A2P 10DLC), but
+# voice is not: Relage can CALL the caregiver, ask the question with TTS,
+# and run the spoken answer through the same Gemma interpretation path the
+# SMS webhook uses.
+
+import os as _os
+from fastapi.responses import Response as _Response
+
+
+MAX_CALL_ATTEMPTS = 3
+REDIAL_DELAY_S = 8
+
+
+def _call_texts() -> dict:
+    """The three utterances a call can need, built from current state."""
+    slot = STATE["appointment"] or {}
+    cg = PROFILE["caregiver"]["name"].split()[0]
+    first = PROFILE["patient"]["name"].split()[0]
+    care = PROFILE["recurring_care"][0]["type"]
+    return {
+        "ask": (f"Hello {cg}, this is Rel Age calling on behalf of {first}. "
+                f"She has a {care} appointment available {slot.get('day', '')} "
+                f"at {slot.get('time', '')} at {slot.get('provider', '')}. "
+                "Would you be able to drive her? Take your time — just say "
+                "something like: yes I can, or, no I have work that day."),
+        "retry": ("Sorry, we did not catch that. Would you be able to drive "
+                  "her? Just say yes or no, with any details."),
+        "thanks": ("Thank you. Rel Age will take it from here and keep "
+                   "everyone updated. Goodbye."),
+        "giveup": "No problem — Rel Age will follow up by text. Goodbye.",
+    }
+
+
+def _pregenerate_tts():
+    """Generate ElevenLabs audio for all call utterances before dialing so
+    the answered call plays instantly. No-op without an API key."""
+    STATE["tts"] = {}
+    for key, text in _call_texts().items():
+        name = tools.eleven_tts(text)
+        if name:
+            STATE["tts"][key] = name
+    if STATE["tts"]:
+        log("call", f"ElevenLabs TTS ready ({len(STATE['tts'])} clips)")
+
+
+def _place_caregiver_call() -> dict:
+    base = _os.environ["BASE_URL"]
+    to = _os.environ.get("CAREGIVER_PHONE") or PROFILE["caregiver"]["phone"]
+    call = tools.place_call(to, f"{base}/voice-twiml",
+                            status_callback=f"{base}/call-status")
+    STATE["call_attempts"] = STATE.get("call_attempts", 0) + 1
+    cg = PROFILE["caregiver"]["name"].split()[0]
+    log("call", f"Placed voice call to {to} "
+                f"(attempt {STATE['call_attempts']}, sid {call.get('sid', '?')})",
+        friendly=f"Calling {cg}'s phone to ask about the ride…")
+    return call
+
+
+@app.post("/call-caregiver")
+def call_caregiver():
+    """Place a real call to the caregiver asking about the ride."""
+    if STATE["status"] != "CAREGIVER_CONTACTED":
+        return JSONResponse({"error": "no outstanding caregiver request"}, 409)
+    if not _os.environ.get("BASE_URL") or not tools.twilio_configured():
+        return JSONResponse({"error": "voice not configured "
+                             "(need BASE_URL + TWILIO_* in .env)"}, 409)
+    try:
+        STATE["call_attempts"] = 0
+        _pregenerate_tts()
+        _place_caregiver_call()
+        return {"placed": True}
+    except Exception as e:
+        log("error", f"Call failed: {e}")
+        return JSONResponse({"error": str(e)}, 500)
+
+
+@app.post("/call-status")
+async def call_status(request: Request):
+    """Twilio's final-status callback. If the caregiver didn't pick up,
+    automatically redial after a short pause (up to MAX_CALL_ATTEMPTS)."""
+    form = await request.form()
+    status = form.get("CallStatus", "")
+    if (status in ("no-answer", "busy", "failed", "canceled")
+            and STATE["status"] == "CAREGIVER_CONTACTED"
+            and STATE.get("call_attempts", 0) < MAX_CALL_ATTEMPTS):
+        cg = PROFILE["caregiver"]["name"].split()[0]
+        log("call", f"Call {status} — redialing in {REDIAL_DELAY_S}s",
+            friendly=f"{cg} didn't pick up. Trying again in a moment…")
+
+        def _redial():
+            import time
+            time.sleep(REDIAL_DELAY_S)
+            if STATE["status"] == "CAREGIVER_CONTACTED":
+                try:
+                    _place_caregiver_call()
+                except Exception as e:
+                    log("error", f"Redial failed: {e}")
+
+        threading.Thread(target=_redial, daemon=True).start()
+    elif (status in ("no-answer", "busy", "failed")
+          and STATE["status"] == "CAREGIVER_CONTACTED"):
+        log("call", "No answer after max attempts — SMS remains the ask.",
+            friendly="Couldn't reach them by phone — the text is still out.")
+    return {"ok": True}
+
+
+def _speak(key: str) -> str:
+    """TwiML fragment: ElevenLabs clip when pre-generated, else Polly Neural."""
+    name = (STATE.get("tts") or {}).get(key)
+    if name:
+        base = _os.environ.get("BASE_URL", "")
+        return f"<Play>{base}/static/tts/{name}</Play>"
+    text = _call_texts()[key]
+    return f'<Say voice="Polly.Joanna-Neural">{text}</Say>'
+
+
+@app.post("/voice-twiml")
+def voice_twiml(retry: int = 0):
+    """TwiML Twilio fetches when the caregiver answers: ask the question,
+    gather the spoken reply. If nothing is heard, re-prompt once (retry=1)
+    before giving up, so a slow pickup doesn't end the call."""
+    if retry:
+        fallback = _speak("giveup")
+    else:
+        fallback = '<Redirect method="POST">/voice-twiml?retry=1</Redirect>'
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Gather input="speech" action="/voice-result" method="POST"
+          timeout="8" speechTimeout="2">
+    {_speak("retry" if retry else "ask")}
+  </Gather>
+  {fallback}
+</Response>"""
+    return _Response(content=xml, media_type="text/xml")
+
+
+@app.post("/voice-result")
+async def voice_result(request: Request):
+    """Gather callback: Twilio posts the speech transcription here. It feeds
+    the exact same Gemma interpretation worker the SMS webhook uses."""
+    form = await request.form()
+    text = form.get("SpeechResult", "")
+    cg = PROFILE["caregiver"]["name"].split()[0]
+    if text and STATE["status"] == "CAREGIVER_CONTACTED":
+        STATE["sms_outbox"].append({
+            "to": "Relage", "phone": "", "time": "",
+            "body": f"🎙 {cg} said (on the call): “{text}”", "via": "voice"})
+        threading.Thread(target=_caregiver_worker, args=(text,),
+                         daemon=True).start()
+        speak = _speak("thanks")
+    else:
+        speak = '<Say voice="Polly.Joanna-Neural">Thank you. Goodbye.</Say>'
+    xml = (f'<?xml version="1.0" encoding="UTF-8"?><Response>'
+           f'{speak}</Response>')
+    return _Response(content=xml, media_type="text/xml")
+
+
 @app.post("/reset")
 def reset():
     """Reset demo state (handy between demo runs)."""
@@ -373,6 +549,7 @@ def reset():
         "status": "NEEDS_APPOINTMENT", "activity": [], "appointment": None,
         "transport_options": [], "transport": None, "caregiver_reply": None,
         "plan_explanation": "", "sms_outbox": [], "busy": False,
+        "tts": {}, "call_attempts": 0,
         "calendar": [{"date": "2026-02-08", "time": "10:00 AM",
                       "title": "Cardiology follow-up — Regional Heart Center",
                       "kind": "past", "status": "completed"}],
