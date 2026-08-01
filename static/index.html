@@ -146,7 +146,7 @@
 <main>
 
   <!-- ============ HOME ============ -->
-  <section class="view active" id="view-home">
+  <section class="view" id="view-home">
     <div class="greeting" id="greetName">Good morning 👋</div>
     <div class="subgreet">Here's what needs your attention.</div>
     <div class="card" id="needCard">
@@ -210,35 +210,38 @@
   </section>
 
   <!-- ============ SETUP (caregiver-facing) ============ -->
-  <section class="view" id="view-setup">
-    <div class="greeting" style="font-size:27px">Caregiver setup</div>
-    <div class="subgreet">Usually filled in by a family member or caregiver, once.</div>
+  <section class="view active" id="view-setup">
+    <div class="greeting" style="font-size:27px">Welcome — set up a profile</div>
+    <div class="subgreet">Usually filled in by a family member or caregiver, once. In a hurry? Tap <b>✨ Load demo data</b>.</div>
     <div class="card">
       <div class="fgrid">
-        <div><label>First name</label><input id="f_first" value="Eleanor"></div>
-        <div><label>Last name</label><input id="f_last" value="Brooks"></div>
-        <div><label>Age</label><input id="f_age" type="number" value="78"></div>
-        <div><label>Town</label><input id="f_town" value="Pine Ridge, Pennsylvania"></div>
+        <div><label>First name</label><input id="f_first" placeholder="Eleanor"></div>
+        <div><label>Last name</label><input id="f_last" placeholder="Brooks"></div>
+        <div><label>Age</label><input id="f_age" type="number" placeholder="78"></div>
+        <div><label>Town</label><input id="f_town" placeholder="Pine Ridge, Pennsylvania"></div>
         <div><label>Insurance</label>
           <select id="f_ins"><option>Medicare</option><option>Medicaid</option><option>Commercial</option></select></div>
-        <div><label>Preferred pharmacy</label><input id="f_pharm" value="Pine Ridge Pharmacy"></div>
+        <div><label>Preferred pharmacy</label><input id="f_pharm" placeholder="Pine Ridge Pharmacy"></div>
         <div class="full"><label>Gets around with</label>
           <div class="checkrow">
-            <label><input type="checkbox" id="f_walker" checked> Walker</label>
+            <label><input type="checkbox" id="f_walker"> Walker</label>
             <label><input type="checkbox" id="f_wheel"> Wheelchair</label>
             <label><input type="checkbox" id="f_none"> No aid</label>
           </div></div>
         <div><label>Best time for appointments</label>
           <select id="f_time"><option value="weekday mornings">Mornings</option><option value="weekday afternoons">Afternoons</option></select></div>
         <div></div>
-        <div><label>Caregiver name</label><input id="f_cgname" value="Sarah Brooks"></div>
-        <div><label>Caregiver cell (for real texts)</label><input id="f_cgphone" value="+1-555-0142" placeholder="+15551234567"></div>
-        <div><label>Type of recurring care</label><input id="f_care" value="cardiology follow-up"></div>
-        <div><label>Usual doctor's office</label><input id="f_prov" value="Regional Heart Center"></div>
-        <div><label>How often (months)</label><input id="f_interval" type="number" value="6"></div>
-        <div><label>Last visit</label><input id="f_last_visit" type="date" value="2026-02-08"></div>
+        <div><label>Caregiver name</label><input id="f_cgname" placeholder="Sarah Brooks"></div>
+        <div><label>Caregiver cell (for real calls/texts)</label><input id="f_cgphone" placeholder="+15551234567"></div>
+        <div><label>Type of recurring care</label><input id="f_care" placeholder="cardiology follow-up"></div>
+        <div><label>Usual doctor's office</label><input id="f_prov" placeholder="Regional Heart Center"></div>
+        <div><label>How often (months)</label><input id="f_interval" type="number" placeholder="6"></div>
+        <div><label>Last visit</label><input id="f_last_visit" type="date"></div>
       </div>
-      <button class="bigbtn" style="font-size:20px" onclick="saveProfile()">Save profile</button>
+      <div style="display:flex; gap:10px;">
+        <button class="bigbtn" style="font-size:20px; flex:1;" onclick="saveProfile()">Save profile</button>
+        <button class="bigbtn gray" style="font-size:20px; flex:1;" onclick="loadDemoData()">✨ Load demo data</button>
+      </div>
       <div class="notice good" id="saveNote" style="display:none">Saved! The Today screen now reflects this profile.</div>
     </div>
     <div class="card">
@@ -258,7 +261,7 @@
 
 <!-- bottom navigation: two big targets only -->
 <nav class="bottomnav">
-  <button id="nav-home" class="active" onclick="showView('home')"><span class="nico">🏠</span>Home</button>
+  <button id="nav-home" onclick="showView('home')"><span class="nico">🏠</span>Home</button>
   <button id="nav-schedule" onclick="showView('schedule')"><span class="nico">📅</span>My Schedule</button>
 </nav>
 
@@ -288,7 +291,9 @@
 
 <script>
 let state = null, profile = null, config = null;
-let currentView = 'home', userPinned = false, lastStatus = '';
+// Every fresh open starts on the setup screen (demo onboarding); the view
+// stays pinned there until the profile is saved or the user navigates.
+let currentView = 'setup', userPinned = true, lastStatus = 'NEEDS_APPOINTMENT';
 
 const HUMAN_STATUS = {
   NEEDS_APPOINTMENT: "Here to help you get to your care",
@@ -464,6 +469,14 @@ function renderHome() {
 
 /* ---------- setup ---------- */
 async function saveProfile() {
+  if (!val('f_first').trim()) {
+    const note = document.getElementById('saveNote');
+    note.textContent = 'Add at least a first name — or tap ✨ Load demo data.';
+    note.style.display = 'block';
+    setTimeout(() => { note.style.display = 'none';
+      note.textContent = 'Saved! The Today screen now reflects this profile.'; }, 3000);
+    return;
+  }
   const mobility = [];
   if (document.getElementById('f_walker').checked) mobility.push('walker');
   if (document.getElementById('f_wheel').checked) mobility.push('wheelchair');
@@ -493,10 +506,25 @@ async function saveProfile() {
   localBubbles = []; lastStatus = '';
   document.getElementById('goBtn').disabled = false;
   document.getElementById('saveNote').style.display = 'block';
-  setTimeout(() => document.getElementById('saveNote').style.display = 'none', 4000);
+  setTimeout(() => document.getElementById('saveNote').style.display = 'none', 2500);
   renderHome();
+  setTimeout(() => showView('home', false), 900);
 }
 function val(id) { return document.getElementById(id).value; }
+
+function loadDemoData() {
+  // Autopopulate the synthetic demo patient (Eleanor) into the form.
+  const set = (id, v) => document.getElementById(id).value = v;
+  set('f_first', 'Eleanor'); set('f_last', 'Brooks'); set('f_age', 78);
+  set('f_town', 'Pine Ridge, Pennsylvania'); set('f_ins', 'Medicare');
+  set('f_pharm', 'Pine Ridge Pharmacy'); set('f_time', 'weekday mornings');
+  set('f_cgname', 'Sarah Brooks'); set('f_cgphone', '+1-555-0142');
+  set('f_care', 'cardiology follow-up'); set('f_prov', 'Regional Heart Center');
+  set('f_interval', 6); set('f_last_visit', '2026-02-08');
+  document.getElementById('f_walker').checked = true;
+  document.getElementById('f_wheel').checked = false;
+  document.getElementById('f_none').checked = false;
+}
 
 async function sendOnboard() {
   const input = document.getElementById('onboardInput');
