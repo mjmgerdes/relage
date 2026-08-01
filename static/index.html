@@ -450,6 +450,14 @@ const SCREEN_FOR = {
 };
 
 const VIEWS = ['profile','today','coordinate','ride','calendar'];
+
+// The status stays NEEDS_APPOINTMENT for the first several seconds of a run
+// (Gemma's planning call blocks the worker), so route on `busy` too —
+// otherwise the poll yanks the user back to Today right after they start.
+function targetScreen(){
+  if(state?.busy && state.status === 'NEEDS_APPOINTMENT') return 'coordinate';
+  return SCREEN_FOR[state?.status];
+}
 const RIDE_STATES = ['CAREGIVER_CONTACTED','CAREGIVER_UNAVAILABLE','TRANSPORT_FOUND',
                      'AWAITING_USER_CONFIRMATION','CONFIRMED'];
 
@@ -619,7 +627,9 @@ async function renderToday(){
   document.getElementById('greet').textContent = `Good ${part}, ${patFirst()} 👋`;
 
   const s = state?.status;
-  const needs = s === 'NEEDS_APPOINTMENT';
+  // A run that has started but not yet moved off NEEDS_APPOINTMENT is
+  // in flight, not idle — don't offer the button again.
+  const needs = s === 'NEEDS_APPOINTMENT' && !state?.busy;
   const done  = s === 'CONFIRMED';
 
   document.getElementById('inFlightCard').style.display = (!needs && !done) ? 'block' : 'none';
@@ -666,6 +676,11 @@ function renderCoordinate(){
       return `<div class="step"><span class="ico">${spin ? '<span class="spinner"></span>' : '✅'}</span>
               <span>${esc(a.friendly)}</span></div>`;
     }).join('');
+  } else if(state?.busy){
+    // A run has started but Gemma's first planning call hasn't returned yet.
+    document.getElementById('coordSteps').innerHTML =
+      '<div class="step"><span class="ico"><span class="spinner"></span></span>' +
+      '<span>Working out the best way to get you seen…</span></div>';
   }
 
   document.getElementById('coordTitle').textContent =
@@ -843,9 +858,9 @@ async function poll(){
 
     if(state.status !== lastStatus){
       // Badge the screen that changed if the user is looking somewhere else.
-      const target = SCREEN_FOR[state.status];
-      if(lastStatus !== null && target && target !== currentView){
-        const d = document.getElementById('dot-' + target);
+      const t = targetScreen();
+      if(lastStatus !== null && t && t !== currentView){
+        const d = document.getElementById('dot-' + t);
         if(d) d.classList.add('on');
       }
       lastStatus = state.status;
@@ -854,8 +869,8 @@ async function poll(){
     }
 
     if(!pinned){
-      const target = SCREEN_FOR[state.status];
-      if(target && target !== currentView) showView(target, false);
+      const t = targetScreen();
+      if(t && t !== currentView) showView(t, false);
     }
 
     renderToday(); renderCoordinate(); renderRide();

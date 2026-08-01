@@ -57,21 +57,25 @@ Engineering around the models:
 
 One complete story for one synthetic patient:
 
-1. **Home** — "Cardiology follow-up — time to book" exists because Eleanor
-   entered a 6-month recurring plan (the app never infers medical need).
-   One button: *"Yes, help me book it."*
-2. **Agent works** — Gemma plans tool calls inside the state machine: find an
+Five screens: **Profile · Today · Coordinate · Ride · Care Calendar.**
+
+1. **Today** — "Cardiology Follow-Up due" exists because Eleanor entered a
+   6-month recurring plan (the app never infers medical need). One button:
+   *"Coordinate appointment."*
+2. **Coordinate** — Gemma plans tool calls inside the state machine: find an
    in-network provider, match a morning slot, hold it. Plain-language
-   progress for Eleanor; full tool/model telemetry in the demo drawer.
-3. **Real phone call** — the appointment is 34 miles away. Relage **calls the
-   caregiver's actual phone** (Twilio Voice + ElevenLabs TTS), asks whether
-   she can drive, and transcribes the spoken answer.
-4. **Adapt** — "No, I can't — I've work that day" → gemma3 4B interprets the
-   transcript → gemma4 8B replans to a walker-accessible medical van and
-   explains the plan in plain language.
-5. **Confirm** — Eleanor reviews and approves; the care timeline updates
-   (8:55 AM pickup → 10:30 AM appointment → 12:15 PM return) and
-   confirmations go out.
+   progress for Eleanor, with tool calls, model routing, and per-call latency
+   in an expandable agent-activity panel.
+3. **Ride — real phone call** — the appointment is 34 miles away. Relage
+   **calls the caregiver's actual phone** (Twilio Voice + ElevenLabs TTS),
+   asks whether she can drive, and transcribes the spoken answer.
+4. **Ride — adapt** — "No, I can't — I've work that day" → gemma3 4B
+   interprets the transcript → gemma4 8B replans to a walker-accessible
+   medical van and explains the plan in plain language. The same screen shows
+   *why Sarah was asked first* (1 of 4 past requests accepted).
+5. **Confirm** — Eleanor reviews and approves on the Ride screen; the **Care
+   Calendar** updates (8:55 AM pickup → 10:30 AM appointment → 12:15 PM
+   return) and confirmations go out.
 
 If the caregiver doesn't pick up, Relage **auto-redials** (up to 3 attempts).
 An in-app phone simulator covers the SMS path with zero external
