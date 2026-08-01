@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RuralRelay</title>
+<title>Relage</title>
 <style>
   :root {
     --bg: #faf8f3; --card: #ffffff; --ink: #26262e; --muted: #5f5f6a;
@@ -133,7 +133,7 @@
 <header>
   <div class="logo">RR</div>
   <div>
-    <h1>RuralRelay</h1>
+    <h1>Relage</h1>
     <div class="sub" id="statusHuman">Here to help you get to your care</div>
   </div>
   <div class="hbtns">
@@ -278,7 +278,7 @@
   <button class="rbtn" onclick="resetDemo()">↺ Reset demo</button>
 </aside>
 
-<footer>RuralRelay · On-device Gemma · Care logistics only — not diagnosis or treatment · Synthetic data</footer>
+<footer>Relage · On-device Gemma · Care logistics only — not diagnosis or treatment · Synthetic data</footer>
 
 <script>
 /* ===== HOSTED DEMO MODE (GitHub Pages) =====
@@ -341,7 +341,7 @@ function demoCoordinate() {
       dlog("state", "Appointment is 34 miles from home — transportation needed.",
         `That office is 34 miles away, so let's sort out your ride.`); }],
     [6000, () => dlog("adapt",
-      `${cgF()} has accepted 25% of past ride requests, so RuralRelay lines up accessible transport as a fallback — but still asks her first per stored preference.`)],
+      `${cgF()} has accepted 25% of past ride requests, so Relage lines up accessible transport as a fallback — but still asks her first per stored preference.`)],
     [7000, () => { S.sms_outbox.push({ to: DP.caregiver.name, phone: DP.caregiver.phone,
         body: `Hi ${cgF()}, ${ptF()} has a ${DP.recurring_care[0].type} appointment available ${slot.day}, August 11 at ${slot.time} at ${slot.provider}. Would you be able to drive her? Reply YES or NO.`,
         time: "", via: "simulator" });
@@ -507,7 +507,7 @@ function cgFirst() { return (profile?.caregiver?.name || 'Caregiver').split(' ')
 function renderPhone() {
   const el = document.getElementById('phoneMsgs');
   const inbound = (state?.sms_outbox || []).map(m =>
-    ({ dir: 'in', text: m.body, who: 'RuralRelay → ' + m.to + (m.via === 'twilio' ? ' · real SMS ✓' : '') }));
+    ({ dir: 'in', text: m.body, who: 'Relage → ' + m.to + (m.via === 'twilio' ? ' · real SMS ✓' : '') }));
   const all = [...inbound];
   [...localBubbles].reverse().forEach(b => all.splice(b.afterInbound, 0, b));
   el.innerHTML = all.map(b =>

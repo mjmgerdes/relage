@@ -1,4 +1,4 @@
-"""Deterministic tools the RuralRelay agent can invoke.
+"""Deterministic tools the Relage agent can invoke.
 
 Gemma plans WHICH tool to call next; these functions do the actual work
 against synthetic datasets (this is a hackathon — no real patient data, no
@@ -115,7 +115,8 @@ def send_sms(to_name: str, to_phone: str, body: str, outbox: list) -> dict:
     # CAREGIVER_PHONE env overrides for testing.
     real_to = os.environ.get("CAREGIVER_PHONE") or to_phone
     looks_real = real_to.startswith("+") and "555-" not in real_to
-    if sid and token and from_num and looks_real:
+    sms_disabled = os.environ.get("TWILIO_SMS_DISABLED")  # e.g. A2P-blocked number
+    if sid and token and from_num and looks_real and not sms_disabled:
         try:
             import urllib.request, urllib.parse, base64
             url = f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"
@@ -130,6 +131,24 @@ def send_sms(to_name: str, to_phone: str, body: str, outbox: list) -> dict:
             msg["via"] = "simulator (twilio failed)"
     outbox.append(msg)
     return msg
+
+
+def place_call(to_phone: str, twiml_url: str) -> dict:
+    """Place a real phone call through Twilio Voice. The call fetches its
+    TwiML (what to say, how to gather the spoken answer) from twiml_url."""
+    import urllib.request, urllib.parse, base64
+    sid = os.environ["TWILIO_ACCOUNT_SID"]
+    token = os.environ["TWILIO_AUTH_TOKEN"]
+    from_num = os.environ["TWILIO_FROM"]
+    url = f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Calls.json"
+    data = urllib.parse.urlencode(
+        {"To": to_phone, "From": from_num, "Url": twiml_url,
+         "Method": "POST"}).encode()
+    req = urllib.request.Request(url, data=data)
+    auth = base64.b64encode(f"{sid}:{token}".encode()).decode()
+    req.add_header("Authorization", f"Basic {auth}")
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        return json.load(resp)
 
 
 def _offset_time(time_str: str, minutes: int) -> str:

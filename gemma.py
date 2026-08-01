@@ -1,4 +1,4 @@
-"""Gemma interface for RuralRelay.
+"""Gemma interface for Relage.
 
 All model inference runs locally through Ollama (default: gemma4). The
 application never sends the patient profile to a cloud model — this module is
@@ -23,7 +23,7 @@ OLLAMA_URL = "http://localhost:11434/api/chat"
 MODEL = "gemma4:latest"
 
 SYSTEM = (
-    "You are the planning core of RuralRelay, a care-access coordination "
+    "You are the planning core of Relage, a care-access coordination "
     "agent for older adults in rural areas. You handle logistics only: "
     "appointments, transportation, caregiver outreach, reminders. You never "
     "diagnose, recommend medical care, or give treatment advice. "

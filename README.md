@@ -1,4 +1,4 @@
-# RuralRelay
+# Relage
 
 **An on-device care coordination agent for older adults — powered by Gemma.**
 
@@ -6,13 +6,13 @@
 > is only the beginning: someone must check that the provider accepts her
 > insurance, coordinate a time, find out whether her daughter can drive her,
 > find accessible transportation if she cannot, and make sure everyone
-> remembers the plan. RuralRelay handles that logistical work — the journey
+> remembers the plan. Relage handles that logistical work — the journey
 > from "care is due" to "Eleanor gets through the door."
 
 Built in one day for **Build with Gemma NYC: On-Device AI for Healthcare**
 (Track: Agentic Care Copilots).
 
-RuralRelay is decision-support for care **logistics only** — appointments,
+Relage is decision-support for care **logistics only** — appointments,
 rides, caregivers, reminders. It never diagnoses, never recommends medical
 care, and uses only synthetic data.
 
@@ -24,7 +24,7 @@ One complete workflow for one synthetic patient:
    entered a 6-month recurring plan (the app never infers medical need).
 2. **Coordinate** — Gemma plans tool calls inside a state machine: find an
    in-network provider, match a morning slot, tentatively hold it.
-3. **Ride** — the appointment is 34 miles away, so RuralRelay texts Eleanor's
+3. **Ride** — the appointment is 34 miles away, so Relage texts Eleanor's
    daughter Sarah. Gemma interprets her free-text reply ("I have work meetings
    all day Tuesday, sorry") into structured availability.
 4. **Replan** — Sarah can't drive, so Gemma selects a walker-accessible
@@ -73,7 +73,7 @@ the current state, validates every choice, and requires explicit patient
 confirmation before anything is finalized.
 
 **Adaptive coordination:** a transparent preference score (Sarah has accepted
-1 of 4 past ride requests) shifts the coordination order — RuralRelay lines up
+1 of 4 past ride requests) shifts the coordination order — Relage lines up
 accessible transport as a fallback while still asking Sarah first, keeping the
 user in control.
 

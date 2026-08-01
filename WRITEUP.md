@@ -1,4 +1,4 @@
-# RuralRelay
+# Relage
 
 ## An on-device care coordination agent for older adults, powered by Gemma
 
@@ -25,9 +25,9 @@ are hit hardest.
 **Healthcare access is not whether a provider exists. It is whether the
 patient can actually get through the door.**
 
-### What RuralRelay does
+### What Relage does
 
-RuralRelay is a care-access orchestration agent. It turns a healthcare need
+Relage is a care-access orchestration agent. It turns a healthcare need
 into an appointment the patient can actually attend: it finds a feasible
 in-network appointment, tentatively holds it, coordinates transportation with
 the caregiver by SMS, interprets the reply, adapts when the caregiver is
@@ -37,7 +37,7 @@ confirmation, the care timeline updates and confirmations and reminders go
 out to both patient and caregiver.
 
 It is decision-support for **logistics only**. The "cardiology follow-up due"
-card exists because Eleanor entered a six-month recurring plan — RuralRelay
+card exists because Eleanor entered a six-month recurring plan — Relage
 never infers what medical care someone needs, never diagnoses, and never
 recommends treatment. All data is synthetic.
 
@@ -94,16 +94,19 @@ or take an illegal action. This makes the agent feel robust rather than
 improvised: the LLM plans and interprets; the machine guarantees safety and
 progress.
 
-**The caregiver loop is a real webhook.** The SMS conversation runs through a
+**The caregiver loop reaches a real phone.** The conversation runs through a
 `/caregiver-response` endpoint. In the demo UI, an embedded "Sarah's phone"
-simulator posts to it — which keeps the live demo deterministic and free of
-external dependencies — but the same endpoint accepts Twilio's form-encoded
-inbound webhook unchanged, and outbound messages route through real Twilio
-SMS when credentials are configured. The agent genuinely reacts to an
-external, asynchronous human reply mid-workflow.
+simulator posts to it — which keeps the demo deterministic — but the same
+endpoint accepts Twilio's form-encoded inbound webhook unchanged. And because
+US carriers block SMS from unregistered numbers (A2P 10DLC), we added a
+Twilio Voice channel: Relage places a real call to the caregiver's phone,
+asks the question with TTS, and feeds the speech transcription into the same
+Gemma interpretation path. In live testing, a spoken "No, I've work that day"
+was transcribed, interpreted as a decline, and the agent replanned to the
+accessible van — a real phone, a real human answer, mid-workflow.
 
 **Adaptation is transparent, not magical.** We do not claim to have trained a
-personalized model in a day. RuralRelay keeps a visible preference score —
+personalized model in a day. Relage keeps a visible preference score —
 Sarah has accepted 1 of her last 4 ride requests, while accessible transport
 has worked 3 of 3 times — and adapts its coordination order accordingly:
 it still asks Sarah first (Eleanor's stored preference keeps the user in
@@ -146,7 +149,7 @@ complete plan that Eleanor — always — confirms herself.
 On-device Gemma is not a gimmick here: care logistics touch the most
 sensitive facts about a person's life — where they live, who cares for them,
 how they move, what care they receive. A cloud agent would leak all of that
-by design. RuralRelay's split — profile and planning local, minimum-necessary
+by design. Relage's split — profile and planning local, minimum-necessary
 fields shared per approved action — is an architecture that only works with a
 capable local model, and Gemma 4's constrained-JSON planning and
 natural-language interpretation were strong enough to carry all five roles.

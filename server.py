@@ -1,4 +1,4 @@
-"""RuralRelay server: care coordination state machine driven by on-device Gemma.
+"""Relage server: care coordination state machine driven by on-device Gemma.
 
 Run:  uvicorn server:app --reload --port 8000   (or: python server.py)
 Open: http://localhost:8000
@@ -25,7 +25,7 @@ import tools
 
 ROOT = Path(__file__).parent
 
-app = FastAPI(title="RuralRelay")
+app = FastAPI(title="Relage")
 
 with open(ROOT / "data" / "profile.json") as f:
     PROFILE = json.load(f)
@@ -99,8 +99,14 @@ async def update_profile(request: Request):
 @app.get("/config")
 def get_config():
     """UI feature flags: whether outbound SMS is really going through Twilio."""
+    import os
     import tools as t
-    return {"twilio": t.twilio_configured(),
+    voice = bool(t.twilio_configured() and os.environ.get("BASE_URL")
+                 and os.environ.get("CAREGIVER_PHONE"))
+    sms = bool(t.twilio_configured()
+               and not os.environ.get("TWILIO_SMS_DISABLED"))
+    return {"twilio": sms, "voice": voice,
+            "voice_to": os.environ.get("CAREGIVER_PHONE", ""),
             "caregiver_phone": PROFILE["caregiver"].get("phone", "")}
 
 
@@ -197,14 +203,14 @@ def _coordinate_worker():
             friendly=f"That office is {slot['distance_miles']} miles away, "
                      "so let's sort out your ride.")
 
-        # -- Adaptive preference logic: RuralRelay adapts its coordination
+        # -- Adaptive preference logic: Relage adapts its coordination
         # order based on prior outcomes while keeping the user in control.
         rate = caregiver_acceptance_rate()
         if rate >= 0.3:
             order_note = "Asking Sarah first (her past acceptance suggests she often can)."
         else:
             order_note = (f"Sarah has accepted {rate:.0%} of past ride requests, "
-                          "so RuralRelay will line up accessible transport as a "
+                          "so Relage will line up accessible transport as a "
                           "fallback — but still asks her first per Eleanor's "
                           "stored preference.")
         log("adapt", order_note, PROFILE["transport_preferences"])
@@ -364,6 +370,92 @@ def confirm_plan():
 @app.get("/calendar")
 def get_calendar():
     return {"events": STATE["calendar"]}
+
+
+# ------------------------------------------------------------ voice channel
+# SMS from unregistered US local numbers is carrier-blocked (A2P 10DLC), but
+# voice is not: Relage can CALL the caregiver, ask the question with TTS,
+# and run the spoken answer through the same Gemma interpretation path the
+# SMS webhook uses.
+
+import os as _os
+from fastapi.responses import Response as _Response
+
+
+@app.post("/call-caregiver")
+def call_caregiver():
+    """Place a real call to the caregiver asking about the ride."""
+    if STATE["status"] != "CAREGIVER_CONTACTED":
+        return JSONResponse({"error": "no outstanding caregiver request"}, 409)
+    base = _os.environ.get("BASE_URL")
+    to = _os.environ.get("CAREGIVER_PHONE") or PROFILE["caregiver"]["phone"]
+    if not base or not tools.twilio_configured():
+        return JSONResponse({"error": "voice not configured "
+                             "(need BASE_URL + TWILIO_* in .env)"}, 409)
+    cg = PROFILE["caregiver"]["name"].split()[0]
+    try:
+        call = tools.place_call(to, f"{base}/voice-twiml")
+        log("call", f"Placed voice call to {to} (sid {call.get('sid', '?')})",
+            friendly=f"Calling {cg}'s phone to ask about the ride…")
+        return {"placed": True}
+    except Exception as e:
+        log("error", f"Call failed: {e}")
+        return JSONResponse({"error": str(e)}, 500)
+
+
+@app.post("/voice-twiml")
+def voice_twiml(retry: int = 0):
+    """TwiML Twilio fetches when the caregiver answers: ask the question,
+    gather the spoken reply. If nothing is heard, re-prompt once (retry=1)
+    before giving up, so a slow pickup doesn't end the call."""
+    slot = STATE["appointment"] or {}
+    cg = PROFILE["caregiver"]["name"].split()[0]
+    first = PROFILE["patient"]["name"].split()[0]
+    care = PROFILE["recurring_care"][0]["type"]
+    if retry:
+        intro = "Sorry, we did not catch that. "
+    else:
+        intro = (f"Hello {cg}, this is Rel Age calling on behalf of {first}. "
+                 f"She has a {care} appointment available {slot.get('day', '')} "
+                 f"at {slot.get('time', '')} at {slot.get('provider', '')}. ")
+    prompt = ("Would you be able to drive her? Take your time — just say "
+              "something like: yes I can, or, no I have work that day.")
+    if retry:
+        fallback = ('<Say voice="Polly.Joanna">No problem — Rel Age will '
+                    'follow up by text. Goodbye.</Say>')
+    else:
+        fallback = '<Redirect method="POST">/voice-twiml?retry=1</Redirect>'
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Gather input="speech" action="/voice-result" method="POST"
+          timeout="8" speechTimeout="2">
+    <Say voice="Polly.Joanna">{intro}{prompt}</Say>
+  </Gather>
+  {fallback}
+</Response>"""
+    return _Response(content=xml, media_type="text/xml")
+
+
+@app.post("/voice-result")
+async def voice_result(request: Request):
+    """Gather callback: Twilio posts the speech transcription here. It feeds
+    the exact same Gemma interpretation worker the SMS webhook uses."""
+    form = await request.form()
+    text = form.get("SpeechResult", "")
+    cg = PROFILE["caregiver"]["name"].split()[0]
+    if text and STATE["status"] == "CAREGIVER_CONTACTED":
+        STATE["sms_outbox"].append({
+            "to": "Relage", "phone": "", "time": "",
+            "body": f"🎙 {cg} said (on the call): “{text}”", "via": "voice"})
+        threading.Thread(target=_caregiver_worker, args=(text,),
+                         daemon=True).start()
+        reply = ("Thank you. Rel Age will take it from here and keep "
+                 "everyone updated. Goodbye.")
+    else:
+        reply = "Thank you. Goodbye."
+    xml = (f'<?xml version="1.0" encoding="UTF-8"?><Response>'
+           f'<Say voice="Polly.Joanna">{reply}</Say></Response>')
+    return _Response(content=xml, media_type="text/xml")
 
 
 @app.post("/reset")
