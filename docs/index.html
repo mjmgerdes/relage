@@ -1,724 +1,339 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Relage</title>
-<link rel="icon" type="image/png" href="favicon.png">
-<style>
-  :root {
-    /* Relage brand: navy + sky from the logo */
-    --bg: #f5f8fc; --card: #ffffff; --ink: #1d2433; --muted: #5c6575;
-    --accent: #1b3672; --accent-dark: #12264f; --accent-soft: #e4edf8;
-    --sky: #92c4ea; --warn: #b4552d; --warn-soft: #f9ece4; --line: #dde5f0;
-    --blue: #33556e; --blue-soft: #e8f1fa; --purple: #5b3aa6; --purple-soft: #f1ebfb;
-  }
-  * { box-sizing: border-box; margin: 0; }
-  body {
-    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg); color: var(--ink);
-    font-size: 22px; line-height: 1.55;
-  }
-  header {
-    display: flex; align-items: center; gap: 14px;
-    padding: 16px 22px; background: var(--card); border-bottom: 1px solid var(--line);
-  }
-  header .logo {
-    width: 46px; height: 46px; border-radius: 13px; background: var(--accent);
-    color: #fff; display: flex; align-items: center; justify-content: center;
-    font-weight: 800; font-size: 21px; flex-shrink: 0;
-  }
-  header h1 { font-size: 24px; }
-  header .sub { color: var(--muted); font-size: 15px; }
-  .hbtns { margin-left: auto; display: flex; gap: 10px; }
-  .hbtn {
-    font-size: 15px; padding: 9px 14px; border-radius: 10px; cursor: pointer;
-    background: var(--card); border: 1px solid var(--line); color: var(--muted);
-  }
-  main { max-width: 700px; margin: 0 auto; padding: 26px 20px 120px; }
-  .view { display: none; }
-  .view.active { display: block; }
-  .greeting { font-size: 30px; font-weight: 800; margin-bottom: 4px; }
-  .subgreet { color: var(--muted); font-size: 20px; margin-bottom: 22px; }
-  .card {
-    background: var(--card); border: 1px solid var(--line);
-    border-radius: 18px; padding: 26px; margin-bottom: 18px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.04);
-  }
-  .card h2 { font-size: 26px; margin-bottom: 10px; }
-  .bigbtn {
-    display: block; width: 100%; font-size: 24px; font-weight: 800;
-    padding: 20px; border-radius: 16px; border: none; cursor: pointer;
-    background: var(--accent); color: #fff; margin-top: 18px;
-  }
-  .bigbtn:active { background: var(--accent-dark); }
-  .bigbtn.gray { background: var(--card); color: var(--muted); border: 2px solid var(--line); font-weight: 600; }
-  .bigbtn:disabled { opacity: .5; }
-  .plain { color: var(--muted); font-size: 19px; }
-  .steps { display: flex; flex-direction: column; gap: 16px; margin-top: 8px; }
-  .step { display: flex; gap: 14px; align-items: flex-start; font-size: 21px; }
-  .step .ico { font-size: 24px; width: 34px; flex-shrink: 0; text-align: center; }
-  .spinner {
-    display: inline-block; width: 22px; height: 22px; border: 3px solid var(--line);
-    border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .planrow { display: flex; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--line); align-items: flex-start; }
-  .planrow:last-child { border-bottom: none; }
-  .planrow .ico { font-size: 30px; width: 44px; flex-shrink: 0; text-align: center; }
-  .planrow b { font-size: 22px; }
-  .planrow .det { color: var(--muted); font-size: 19px; }
-  .why {
-    background: var(--purple-soft); border-radius: 14px; padding: 18px 20px;
-    font-size: 20px; margin-top: 16px;
-  }
-  .why .lbl { font-size: 14px; font-weight: 800; color: var(--purple); letter-spacing: .04em; margin-bottom: 6px; }
-  .timeline .ev { display: flex; gap: 18px; padding: 16px 0; border-bottom: 1px solid var(--line); }
-  .timeline .ev:last-child { border-bottom: none; }
-  .timeline .date { width: 86px; flex-shrink: 0; font-weight: 800; color: var(--accent); font-size: 20px; }
-  .timeline .past .date { color: var(--muted); }
-  .timeline .meta { color: var(--muted); font-size: 17px; }
-  .bottomnav {
-    position: fixed; bottom: 0; left: 0; right: 0; display: flex;
-    background: var(--card); border-top: 1px solid var(--line); z-index: 40;
-  }
-  .bottomnav button {
-    flex: 1; font-size: 19px; font-weight: 700; padding: 16px 8px 20px;
-    background: none; border: none; color: var(--muted); cursor: pointer;
-  }
-  .bottomnav button.active { color: var(--accent); }
-  .bottomnav .nico { display: block; font-size: 26px; margin-bottom: 2px; }
-  /* setup form */
-  .fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
-  .fgrid .full { grid-column: 1 / -1; }
-  label { display: block; font-size: 16px; font-weight: 700; color: var(--muted); margin-bottom: 5px; }
-  input, select {
-    width: 100%; font-size: 19px; padding: 12px 14px; border-radius: 10px;
-    border: 1px solid var(--line); background: #fff; color: var(--ink);
-  }
-  .checkrow { display: flex; gap: 16px; flex-wrap: wrap; font-size: 18px; }
-  .checkrow label { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 600; color: var(--ink); }
-  .checkrow input { width: 22px; height: 22px; }
-  .notice { background: var(--warn-soft); color: var(--warn); border-radius: 12px; padding: 14px 16px; font-size: 17px; margin-top: 14px; }
-  .notice.good { background: var(--accent-soft); color: var(--accent); }
-  /* demo drawer */
-  .drawer {
-    position: fixed; top: 0; right: -390px; width: 380px; height: 100vh;
-    background: #1c1c22; color: #eee; z-index: 60; transition: right .25s ease;
-    padding: 18px 16px; overflow-y: auto; font-size: 15px;
-  }
-  .drawer.open { right: 0; box-shadow: -8px 0 30px rgba(0,0,0,.35); }
-  .drawer h3 { font-size: 16px; color: #bbb; margin: 14px 0 8px; }
-  .drawer .close { float: right; background: none; border: none; color: #888; font-size: 22px; cursor: pointer; }
-  .msgs { display: flex; flex-direction: column; gap: 8px; padding: 4px; max-height: 300px; overflow-y: auto; }
-  .bubble { max-width: 88%; padding: 9px 13px; border-radius: 16px; font-size: 14px; line-height: 1.4; }
-  .bubble.in { background: #34343c; align-self: flex-start; }
-  .bubble.out { background: #2e7dd1; align-self: flex-end; }
-  .bubble .who { font-size: 11px; color: #999; margin-bottom: 3px; }
-  .reply { display: flex; gap: 8px; margin-top: 10px; }
-  .reply input { background: #2a2a31; border: none; color: #eee; border-radius: 999px; font-size: 14px; padding: 10px 14px; }
-  .reply button { background: #2e7dd1; border: none; color: #fff; border-radius: 999px; width: 40px; height: 40px; font-size: 16px; cursor: pointer; }
-  .quick { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-  .quick button { background: #2a2a31; color: #ccc; border: 1px solid #3a3a44; border-radius: 999px; font-size: 12px; padding: 5px 10px; cursor: pointer; }
-  .techfeed { display: flex; flex-direction: column; gap: 6px; }
-  .tf { font-size: 12.5px; background: #23232a; border-radius: 8px; padding: 7px 10px; color: #ccc; }
-  .tf .k { font-weight: 800; text-transform: uppercase; font-size: 10px; margin-right: 6px; }
-  .k.gemma { color: #b79af0; } .k.tool { color: #7fb2dd; } .k.state { color: #7fd0b2; }
-  .k.sms { color: #e6cd76; } .k.adapt { color: #e68ab8; } .k.error { color: #e6907a; }
-  .twstatus { font-size: 13px; padding: 8px 10px; border-radius: 8px; background: #23232a; margin-top: 8px; }
-  .drawer .rbtn { width: 100%; margin-top: 12px; background: #2a2a31; color: #ccc; border: 1px solid #3a3a44; border-radius: 8px; padding: 9px; font-size: 14px; cursor: pointer; }
-  footer { text-align: center; color: var(--muted); font-size: 13px; padding: 14px 14px 110px; }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f1e9">
+  <meta name="description" content="Relage coordinates appointments, rides, and reminders for older adults.">
+  <title>Relage | Your care, coordinated</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="stylesheet" href="app.css">
 </head>
 <body>
+  <a class="skip-link" href="#main">Skip to your care plan</a>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
 
-<header>
-  <div>
-    <img src="logo-lockup.png" alt="Relage" style="height:48px; display:block;">
-    <div class="sub" id="statusHuman">Here to help you get to your care</div>
+  <header class="site-header">
+    <a class="brand" href="#" onclick="showView('home'); return false;" aria-label="Relage home">
+      <img src="logo-lockup.png" alt="Relage">
+    </a>
+    <div class="header-status" id="statusHuman" role="status" aria-live="polite">
+      Ready to coordinate your care
+    </div>
+    <div class="header-actions">
+      <button class="quiet-button" type="button" onclick="showView('setup')">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.42 1.42-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V20h-2v-.48A1.7 1.7 0 0 0 12.38 18a1.7 1.7 0 0 0-1.88.34l-.06.06-1.42-1.42.06-.06A1.7 1.7 0 0 0 9.42 15a1.7 1.7 0 0 0-1.56-1.03H7.4v-2h.46A1.7 1.7 0 0 0 9.42 11a1.7 1.7 0 0 0-.34-1.88l-.06-.06 1.42-1.42.06.06A1.7 1.7 0 0 0 12.38 8a1.7 1.7 0 0 0 1.03-1.56V6h2v.44A1.7 1.7 0 0 0 16.44 8a1.7 1.7 0 0 0 1.88-.34l.06-.06 1.42 1.42-.06.06A1.7 1.7 0 0 0 19.4 11a1.7 1.7 0 0 0 1.56 1.03h.44v2h-.44A1.7 1.7 0 0 0 19.4 15Z"/></svg>
+        Setup
+      </button>
+      <button class="lab-button" type="button" onclick="toggleDrawer(true)" aria-controls="drawer" aria-haspopup="dialog">
+        <span class="live-dot" aria-hidden="true"></span>
+        Demo lab
+      </button>
+    </div>
+  </header>
+
+  <div class="hosted-notice" id="hostedNotice" hidden>
+    <strong>Replay mode</strong>
+    <span>This version replays outputs from an on-device Gemma run.</span>
+    <a href="https://github.com/mjmgerdes/relage">Run the live agent</a>
   </div>
-  <div class="hbtns">
-    <button class="hbtn" onclick="showView('setup')">⚙️ Setup</button>
-    <button class="hbtn" onclick="toggleDrawer()">🛠 Demo</button>
-  </div>
-</header>
 
-<div style="background:#fdf3d7; color:#8a6d1a; text-align:center; font-size:14px; padding:8px 16px;">
-  <b>Hosted demo mode</b> — replays real Gemma outputs recorded from a live on-device run
-  (GitHub Pages can't run the local model). Clone the <a href="https://github.com/mjmgerdes/relage" style="color:#8a6d1a">repo</a> to run the live agent with Ollama.
-</div>
-
-<main>
-
-  <!-- ============ HOME ============ -->
-  <section class="view active" id="view-home">
-    <div class="greeting" id="greetName">Good morning 👋</div>
-    <div class="subgreet">Here's what needs your attention.</div>
-    <div class="card" id="needCard">
-      <h2 id="needTitle">Check-up due</h2>
-      <p class="plain" id="needBody"></p>
-      <button class="bigbtn" id="goBtn" onclick="startCoordinate()">Yes, help me book it</button>
-    </div>
-    <div class="card" id="allSet" style="display:none">
-      <h2>Nothing needs your attention right now 😊</h2>
-      <p class="plain">We'll let you know when your next check-up is coming due.</p>
-    </div>
-  </section>
-
-  <!-- ============ WORKING ============ -->
-  <section class="view" id="view-working">
-    <div class="greeting" style="font-size:26px" id="workTitle">Working on it…</div>
-    <div class="subgreet" id="workSub">This takes a moment. You don't need to do anything.</div>
-    <div class="card">
-      <div class="steps" id="friendlySteps"></div>
-    </div>
-  </section>
-
-  <!-- ============ REVIEW ============ -->
-  <section class="view" id="view-review">
-    <div class="greeting" style="font-size:27px">Here's your plan</div>
-    <div class="subgreet">Please look it over. Nothing is booked until you say OK.</div>
-    <div class="card">
-      <div id="planRows"></div>
-      <div class="why" id="whyBox" style="display:none">
-        <div class="lbl">WHY THIS WORKS FOR YOU</div>
-        <div id="whyText"></div>
+  <main id="main" class="app-shell">
+    <section class="journey-shell" aria-label="Care coordination progress">
+      <div class="journey-heading">
+        <span>Current care journey</span>
+        <span id="journeySummary">Ready to start</span>
       </div>
-      <button class="bigbtn" onclick="confirmPlan()">✓ Yes, book everything</button>
-      <button class="bigbtn gray" onclick="showView('home')">Not now</button>
-    </div>
-    <div class="card">
-      <h2 style="font-size:20px">How Relage put this together</h2>
-      <div class="steps" id="stepsReview" style="font-size:18px"></div>
-    </div>
-  </section>
+      <ol class="journey" id="journey">
+        <li data-stage="0"><span class="journey-mark">1</span><span>Care due</span></li>
+        <li data-stage="1"><span class="journey-mark">2</span><span>Appointment</span></li>
+        <li data-stage="2"><span class="journey-mark">3</span><span>Ride</span></li>
+        <li data-stage="3"><span class="journey-mark">4</span><span>Confirm</span></li>
+      </ol>
+    </section>
 
-  <!-- ============ DONE ============ -->
-  <section class="view" id="view-done">
-    <div class="greeting" id="doneGreet">You're all set! 🎉</div>
-    <div class="subgreet">Everything is booked. Here's your day:</div>
-    <div class="card"><div id="doneRows"></div>
-      <div class="notice good" id="doneNote"></div>
-    </div>
-    <button class="bigbtn gray" onclick="showView('schedule')">See my full schedule</button>
-    <div class="card">
-      <h2 style="font-size:20px">How Relage put this together</h2>
-      <div class="steps" id="stepsDone" style="font-size:18px"></div>
-    </div>
-  </section>
-
-  <!-- ============ SCHEDULE ============ -->
-  <section class="view" id="view-schedule">
-    <div class="greeting" style="font-size:27px">My schedule</div>
-    <div class="subgreet">Your appointments and rides, in order.</div>
-    <div class="card"><div class="timeline" id="timeline"></div></div>
-  </section>
-
-  <!-- ============ SETUP (caregiver-facing) ============ -->
-  <section class="view" id="view-setup">
-    <div class="greeting" style="font-size:27px">Caregiver setup</div>
-    <div class="subgreet">Usually filled in by a family member or caregiver, once.</div>
-    <div class="card">
-      <div class="fgrid">
-        <div><label>First name</label><input id="f_first" value="Eleanor"></div>
-        <div><label>Last name</label><input id="f_last" value="Brooks"></div>
-        <div><label>Age</label><input id="f_age" type="number" value="78"></div>
-        <div><label>Town</label><input id="f_town" value="Pine Ridge, Pennsylvania"></div>
-        <div><label>Insurance</label>
-          <select id="f_ins"><option>Medicare</option><option>Medicaid</option><option>Commercial</option></select></div>
-        <div><label>Preferred pharmacy</label><input id="f_pharm" value="Pine Ridge Pharmacy"></div>
-        <div class="full"><label>Gets around with</label>
-          <div class="checkrow">
-            <label><input type="checkbox" id="f_walker" checked> Walker</label>
-            <label><input type="checkbox" id="f_wheel"> Wheelchair</label>
-            <label><input type="checkbox" id="f_none"> No aid</label>
-          </div></div>
-        <div><label>Best time for appointments</label>
-          <select id="f_time"><option value="weekday mornings">Mornings</option><option value="weekday afternoons">Afternoons</option></select></div>
-        <div></div>
-        <div><label>Caregiver name</label><input id="f_cgname" value="Sarah Brooks"></div>
-        <div><label>Caregiver cell (for real texts)</label><input id="f_cgphone" value="+1-555-0142" placeholder="+15551234567"></div>
-        <div><label>Type of recurring care</label><input id="f_care" value="cardiology follow-up"></div>
-        <div><label>Usual doctor's office</label><input id="f_prov" value="Regional Heart Center"></div>
-        <div><label>How often (months)</label><input id="f_interval" type="number" value="6"></div>
-        <div><label>Last visit</label><input id="f_last_visit" type="date" value="2026-02-08"></div>
+    <section class="view active" id="view-home" aria-labelledby="homeTitle">
+      <div class="page-intro">
+        <p class="eyebrow">Today</p>
+        <h1 id="homeTitle" tabindex="-1">Good morning, Eleanor.</h1>
+        <p id="homeLead">One care task needs your attention.</p>
       </div>
-      <button class="bigbtn" style="font-size:20px" onclick="saveProfile()">Save profile</button>
-      <div class="notice good" id="saveNote" style="display:none">Saved! The Today screen now reflects this profile.</div>
-    </div>
-    <div class="card">
-      <h2 style="font-size:20px">Anything else we should know?</h2>
-      <p class="plain" style="font-size:16px; margin-bottom:10px">Type it naturally — Gemma (running on this device) turns it into preferences. Try: "I don't like driving after dark and mornings are best for me."</p>
-      <div style="display:flex; gap:8px;">
-        <input id="onboardInput" placeholder="Type in plain language…">
-        <button class="bigbtn" style="width:auto; margin:0; font-size:18px; padding:12px 18px;" onclick="sendOnboard()" id="onboardBtn">Add</button>
+
+      <div class="home-grid">
+        <article class="action-card" id="needCard">
+          <div class="card-kicker">
+            <span class="status-badge"><span aria-hidden="true"></span> Time to schedule</span>
+            <span id="careInterval">Every 6 months</span>
+          </div>
+          <div class="care-symbol" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 21s-7-4.35-7-11a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 6.65-7 11-7 11Z"/><path d="M8.5 12h2l1-2.2 1.5 4.4 1-2.2h1.5"/></svg>
+          </div>
+          <h2 id="needTitle">Cardiology follow-up</h2>
+          <p id="needBody">Your recurring care plan says it is time to schedule your next visit.</p>
+          <ul class="promise-list" aria-label="What Relage will arrange">
+            <li><span class="check-icon" aria-hidden="true">✓</span><span>An in-network morning appointment</span></li>
+            <li><span class="check-icon" aria-hidden="true">✓</span><span>A ride with room for your walker</span></li>
+          </ul>
+          <button class="primary-button" id="goBtn" type="button" onclick="startCoordinate()">
+            Coordinate my visit
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+          <p class="consent-note">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+            Relage will hold options. You approve the plan before anything gets booked.
+          </p>
+        </article>
+
+        <aside class="context-panel" aria-labelledby="preferencesTitle">
+          <p class="eyebrow">Planning around you</p>
+          <h2 id="preferencesTitle">Your preferences are already in the plan.</h2>
+          <div class="preference-list" id="preferenceList">
+            <div><span class="preference-icon" aria-hidden="true">AM</span><span><strong>Morning visits</strong><small>Your preferred time</small></span></div>
+            <div><span class="preference-icon" aria-hidden="true">M</span><span><strong>Medicare</strong><small>In-network providers</small></span></div>
+            <div><span class="preference-icon" aria-hidden="true">W</span><span><strong>Walker access</strong><small>Door-to-door transport</small></span></div>
+          </div>
+          <button class="text-button" type="button" onclick="showView('setup')">Review care preferences <span aria-hidden="true">→</span></button>
+        </aside>
       </div>
-      <div class="why" id="onboardOut" style="display:none; margin-top:12px">
-        <div class="lbl">UNDERSTOOD AS</div><div id="onboardText"></div>
+
+      <article class="all-set-card" id="allSet" hidden>
+        <span class="all-set-icon" aria-hidden="true">✓</span>
+        <div><p class="eyebrow">No action needed</p><h2>Your care plan is on track.</h2><p>Relage will let you know when the next task is ready.</p></div>
+      </article>
+    </section>
+
+    <section class="view" id="view-working" aria-labelledby="workTitle" aria-busy="true">
+      <div class="working-layout">
+        <div>
+          <p class="eyebrow">Relage is coordinating</p>
+          <h1 id="workTitle" tabindex="-1">Arranging your appointment and ride.</h1>
+          <p class="page-lead" id="workSub">You can leave this screen open. Relage will stop when it needs your approval.</p>
+          <div class="progress-card">
+            <div class="progress-card-head">
+              <span>Live progress</span>
+              <span class="working-pill"><span aria-hidden="true"></span> Working</span>
+            </div>
+            <div class="steps" id="friendlySteps" role="log" aria-live="polite"></div>
+          </div>
+        </div>
+        <aside class="trust-card">
+          <div class="trust-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10Z"/><path d="m9 12 2 2 4-5"/></svg>
+          </div>
+          <p class="eyebrow">Private by design</p>
+          <h2>Your care profile stays on this device.</h2>
+          <p>Sarah receives the appointment time and place. Relage does not share your history or insurance details.</p>
+          <button class="text-button" type="button" onclick="toggleDrawer(true)">Open live agent activity <span aria-hidden="true">→</span></button>
+        </aside>
       </div>
+    </section>
+
+    <section class="view" id="view-review" aria-labelledby="reviewTitle">
+      <div class="page-intro review-intro">
+        <p class="eyebrow">Ready for your approval</p>
+        <h1 id="reviewTitle" tabindex="-1">Your whole trip is lined up.</h1>
+        <p>Review the appointment and ride together. Nothing is booked yet.</p>
+      </div>
+      <div class="review-grid">
+        <article class="plan-card">
+          <div class="plan-date" id="planDateBadge"><span>TUE</span><strong>11</strong><small>AUG</small></div>
+          <div class="plan-details" id="planRows"></div>
+          <div class="why" id="whyBox" hidden>
+            <div class="why-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 3a7 7 0 0 0-4 12.75V19h8v-3.25A7 7 0 0 0 12 3Z"/><path d="M9 22h6M9 15h6"/></svg>
+            </div>
+            <div><strong>Why this plan fits</strong><p id="whyText"></p></div>
+          </div>
+        </article>
+        <aside class="approval-card">
+          <p class="eyebrow">Your decision</p>
+          <h2>Book the appointment and ride?</h2>
+          <p>Relage will reserve both, add them to your schedule, and send confirmations to you and Sarah.</p>
+          <button class="primary-button" id="confirmBtn" type="button" onclick="confirmPlan()">
+            Confirm and book
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>
+          </button>
+          <button class="secondary-button" type="button" onclick="showView('home')">Not now</button>
+        </aside>
+      </div>
+      <details class="recap">
+        <summary>See how Relage built this plan</summary>
+        <div class="steps compact" id="stepsReview"></div>
+      </details>
+    </section>
+
+    <section class="view" id="view-done" aria-labelledby="doneGreet">
+      <div class="success-hero">
+        <div class="success-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>
+        </div>
+        <p class="eyebrow">Booked</p>
+        <h1 id="doneGreet" tabindex="-1">Your visit is set, Eleanor.</h1>
+        <p id="doneNote">We sent confirmations to you and Sarah.</p>
+      </div>
+      <div class="done-grid">
+        <article class="day-card">
+          <div class="day-card-head"><span>Your day</span><span id="doneDate">Tuesday, August 11</span></div>
+          <div id="doneRows"></div>
+        </article>
+        <aside class="next-card">
+          <p class="eyebrow">Next step</p>
+          <h2>Relage will remind you.</h2>
+          <p>You will get a message the day before and again that morning. Sarah gets the same update.</p>
+          <button class="secondary-button" type="button" onclick="showView('schedule')">Open my schedule</button>
+        </aside>
+      </div>
+      <details class="recap">
+        <summary>See the completed coordination log</summary>
+        <div class="steps compact" id="stepsDone"></div>
+      </details>
+    </section>
+
+    <section class="view" id="view-schedule" aria-labelledby="scheduleTitle">
+      <div class="page-intro schedule-intro">
+        <p class="eyebrow">Care calendar</p>
+        <h1 id="scheduleTitle" tabindex="-1">Your schedule</h1>
+        <p>Appointments, rides, and follow-ups in one place.</p>
+      </div>
+      <article class="schedule-card">
+        <div class="schedule-card-head"><h2>Care timeline</h2><span>All times local</span></div>
+        <div class="timeline" id="timeline"></div>
+      </article>
+    </section>
+
+    <section class="view" id="view-setup" aria-labelledby="setupTitle">
+      <div class="page-intro setup-intro">
+        <button class="back-button" type="button" onclick="showView('home')">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg> Back to today
+        </button>
+        <p class="eyebrow">Caregiver setup</p>
+        <h1 id="setupTitle" tabindex="-1">Set up care once. Relage handles the follow-through.</h1>
+        <p>A family member or caregiver can update these details at any time.</p>
+      </div>
+      <form class="setup-form" onsubmit="event.preventDefault(); saveProfile();">
+        <fieldset>
+          <legend><span>01</span> About Eleanor</legend>
+          <div class="fgrid">
+            <div><label for="f_first">First name</label><input id="f_first" autocomplete="given-name" value="Eleanor"></div>
+            <div><label for="f_last">Last name</label><input id="f_last" autocomplete="family-name" value="Brooks"></div>
+            <div><label for="f_age">Age</label><input id="f_age" type="number" min="0" inputmode="numeric" value="78"></div>
+            <div><label for="f_town">Home town</label><input id="f_town" autocomplete="address-level2" value="Pine Ridge, Pennsylvania"></div>
+            <div><label for="f_ins">Insurance</label><select id="f_ins"><option>Medicare</option><option>Medicaid</option><option>Commercial</option></select></div>
+            <div><label for="f_pharm">Preferred pharmacy</label><input id="f_pharm" value="Pine Ridge Pharmacy"></div>
+            <div class="full">
+              <span class="field-label">Mobility needs</span>
+              <div class="checkrow">
+                <label><input type="checkbox" id="f_walker" checked><span>Walker</span></label>
+                <label><input type="checkbox" id="f_wheel"><span>Wheelchair</span></label>
+                <label><input type="checkbox" id="f_none"><span>No mobility aid</span></label>
+              </div>
+            </div>
+            <div><label for="f_time">Best appointment time</label><select id="f_time"><option value="weekday mornings">Weekday mornings</option><option value="weekday afternoons">Weekday afternoons</option></select></div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend><span>02</span> Care and support</legend>
+          <div class="fgrid">
+            <div><label for="f_cgname">Caregiver name</label><input id="f_cgname" autocomplete="name" value="Sarah Brooks"></div>
+            <div><label for="f_cgphone">Caregiver phone</label><input id="f_cgphone" type="tel" autocomplete="tel" value="+1-555-0142"></div>
+            <div><label for="f_care">Recurring care</label><input id="f_care" value="cardiology follow-up"></div>
+            <div><label for="f_prov">Usual provider</label><input id="f_prov" value="Regional Heart Center"></div>
+            <div><label for="f_interval">Repeat every</label><div class="input-suffix"><input id="f_interval" type="number" min="1" inputmode="numeric" value="6"><span>months</span></div></div>
+            <div><label for="f_last_visit">Last visit</label><input id="f_last_visit" type="date" value="2026-02-08"></div>
+          </div>
+        </fieldset>
+
+        <button class="primary-button save-button" id="saveBtn" type="submit">Save care profile</button>
+        <div class="notice" id="saveNote" role="status" hidden>Care profile saved. Today’s task now uses these details.</div>
+      </form>
+
+      <article class="natural-note-card">
+        <div>
+          <p class="eyebrow">Tell Relage in your own words</p>
+          <h2>Add a preference without hunting through settings.</h2>
+          <p>Try “Mornings are best, and I do not travel after dark.” Gemma turns your note into preferences you can review.</p>
+        </div>
+        <div class="natural-input">
+          <label for="onboardInput">Care preference</label>
+          <textarea id="onboardInput" rows="3" placeholder="Type a preference..."></textarea>
+          <button class="secondary-button" type="button" onclick="sendOnboard()" id="onboardBtn">Add preference</button>
+        </div>
+        <div class="why onboarding-output" id="onboardOut" hidden>
+          <div class="why-icon" aria-hidden="true">✓</div>
+          <div><strong>Relage understood</strong><p id="onboardText"></p></div>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="Primary navigation">
+    <button id="nav-home" class="active" type="button" onclick="showView('home')" aria-current="page">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></svg>
+      <span>Today</span>
+    </button>
+    <button id="nav-schedule" type="button" onclick="showView('schedule')">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+      <span>Schedule</span>
+    </button>
+  </nav>
+
+  <div class="drawer-scrim" id="drawerScrim" onclick="toggleDrawer(false)" hidden></div>
+  <aside class="demo-drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" aria-hidden="true">
+    <div class="drawer-head">
+      <div><p class="drawer-kicker">Judge view</p><h2 id="drawerTitle">Relage demo lab</h2></div>
+      <button class="icon-button" id="drawerClose" type="button" onclick="toggleDrawer(false)" aria-label="Close demo lab">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
     </div>
-  </section>
+    <p class="drawer-intro">Run the caregiver handoff and watch each Gemma decision without exposing technical detail in Eleanor’s view.</p>
 
-</main>
+    <section class="lab-section phone-lab" aria-labelledby="phoneTitle">
+      <div class="lab-section-head"><div><span>01</span><h3 id="phoneTitle">Caregiver handoff</h3></div><div class="mode-pill" id="twStatus">Simulator</div></div>
+      <div class="phone-shell">
+        <div class="phone-top"><span id="caregiverInitial">S</span><div><strong id="caregiverName">Sarah</strong><small>Caregiver</small></div></div>
+        <div class="msgs" id="phoneMsgs" role="log" aria-live="polite"><div class="empty-message">Start the care journey to contact Sarah.</div></div>
+        <div class="reply">
+          <label class="sr-only" for="smsInput">Reply as caregiver</label>
+          <input id="smsInput" placeholder="Reply as Sarah..." onkeydown="if(event.key==='Enter')sendSms()">
+          <button type="button" onclick="sendSms()" aria-label="Send caregiver reply">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4 20-7Z"/><path d="M22 2 11 13"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="quick" aria-label="Quick caregiver responses">
+        <button type="button" onclick="quick('NO, I have work meetings all day Tuesday, sorry')">Decline ride</button>
+        <button type="button" onclick="quick('YES I can take her')">Accept ride</button>
+        <button type="button" onclick="quick('I could drive her there but not home')">One way only</button>
+      </div>
+      <button class="lab-action" id="callBtn" type="button" hidden onclick="callCaregiver()">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.68 2.78a2 2 0 0 1-.45 2.11L8.07 9.88a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.89.32 1.82.55 2.78.68A2 2 0 0 1 22 16.92Z"/></svg>
+        Call caregiver’s phone
+      </button>
+    </section>
 
-<!-- bottom navigation: two big targets only -->
-<nav class="bottomnav">
-  <button id="nav-home" class="active" onclick="showView('home')"><span class="nico">🏠</span>Home</button>
-  <button id="nav-schedule" onclick="showView('schedule')"><span class="nico">📅</span>My Schedule</button>
-</nav>
+    <section class="lab-section" aria-labelledby="activityTitle">
+      <div class="lab-section-head"><div><span>02</span><h3 id="activityTitle">Agent activity</h3></div><span class="local-badge"><span aria-hidden="true"></span> On device</span></div>
+      <div class="techfeed" id="techFeed" role="log" aria-live="polite"><div class="empty-feed">Agent decisions will appear here.</div></div>
+    </section>
 
-<!-- ============ DEMO DRAWER (judges / caregiver phone) ============ -->
-<aside class="drawer" id="drawer">
-  <button class="close" onclick="toggleDrawer()">✕</button>
-  <h3>📱 Caregiver's phone (SMS)</h3>
-  <div class="twstatus" id="twStatus">Simulator mode — set TWILIO_* env vars for real SMS</div>
-  <div class="msgs" id="phoneMsgs"></div>
-  <div class="reply">
-    <input id="smsInput" placeholder="Reply as caregiver…" onkeydown="if(event.key==='Enter')sendSms()">
-    <button onclick="sendSms()">➤</button>
-  </div>
-  <div class="quick">
-    <button onclick="quick('NO, I have work meetings all day Tuesday, sorry')">Busy that day</button>
-    <button onclick="quick('YES I can take her')">Can drive</button>
-    <button onclick="quick('I could drive her there but not home')">Partial</button>
-  </div>
-  <h3>⚙️ Agent activity (technical)</h3>
-  <div class="techfeed" id="techFeed"></div>
-  <button class="rbtn" onclick="resetDemo()">↺ Reset demo</button>
-</aside>
+    <button class="reset-button" type="button" onclick="resetDemo()">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+      Reset demo
+    </button>
+  </aside>
 
-<footer>Relage · On-device Gemma · Care logistics only — not diagnosis or treatment · Synthetic data</footer>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-<script>
-/* ===== HOSTED DEMO MODE (GitHub Pages) =====
-   Static hosting: no FastAPI backend, no on-device Gemma. This shim mirrors
-   the server's state machine in the browser and replays the actual Gemma
-   outputs recorded from a live local run. Clone the repo and run server.py
-   with Ollama for live inference. */
+  <footer>
+    <span>Relage</span>
+    <span>Care logistics only</span>
+    <span>On-device Gemma</span>
+    <span>Synthetic demo data</span>
+  </footer>
 
-let DP = {
-  patient: { name: "Eleanor Brooks", age: 78, home_location: "Pine Ridge, Pennsylvania",
-    insurance: "Medicare", mobility_needs: ["walker"], preferred_times: ["weekday mornings"],
-    preferred_pharmacy: "Pine Ridge Pharmacy" },
-  caregiver: { name: "Sarah Brooks", relationship: "daughter", phone: "+1-555-0142" },
-  recurring_care: [{ type: "cardiology follow-up", provider: "Regional Heart Center",
-    interval_months: 6, last_visit: "2026-02-08" }]
-};
-const BASE_CAL = () => [{ date: "2026-02-08", time: "10:00 AM",
-  title: (DP.recurring_care[0].type[0].toUpperCase() + DP.recurring_care[0].type.slice(1)) +
-         " — " + DP.recurring_care[0].provider, kind: "past", status: "completed" }];
-const DEMO_SLOT = () => ({ date: "2026-08-11", time: "10:30 AM", day: "Tuesday",
-  provider: DP.recurring_care[0].provider, distance_miles: 34, status: "held" });
-const DEMO_VAN = { name: "Pine Ridge Rural Transit — Medical Access Van",
-  type: "accessible_transport", pickup_time: "8:55 AM", return_pickup_time: "12:15 PM" };
-const cgF = () => DP.caregiver.name.split(" ")[0];
-const ptF = () => DP.patient.name.split(" ")[0];
-
-// Verbatim Gemma outputs captured from the recorded run.
-const REC_FALLBACK = () => "Selected fallback: " + DEMO_VAN.name +
-  " — This option fully accommodates a walker, covers the required distance, and is free for Medicare riders.";
-const REC_EXPLAIN_VAN = "This plan schedules your visit on a weekday morning, respecting your preferred timing. We have arranged an accessible transit van that accommodates your walker, ensuring comfortable travel. Since you are a Medicare rider, this necessary transportation is covered at no cost.";
-const REC_EXPLAIN_CG = () => `This plan is scheduled for a weekday morning, which aligns with your preferred time, and ${cgF()} will drive you door to door — no separate transportation needed.`;
-
-let S = null;
-function demoReset() {
-  S = { status: "NEEDS_APPOINTMENT", activity: [], appointment: null, transport: null,
-    caregiver_reply: null, plan_explanation: "", calendar: BASE_CAL(),
-    sms_outbox: [], busy: false };
-}
-demoReset();
-
-function dlog(kind, text, friendly) { S.activity.push({ kind, text, friendly: friendly || null }); }
-function stage(steps) { steps.forEach(([ms, fn]) => setTimeout(fn, ms)); }
-
-function demoCoordinate() {
-  if (S.status !== "NEEDS_APPOINTMENT" || S.busy) return { error: "not coordinatable" };
-  S.busy = true;
-  const slot = DEMO_SLOT();
-  stage([
-    [1200, () => dlog("gemma",
-      "Plan: search_providers — We need to find providers in the desired specialty who accept the patient's insurance.",
-      `Finding a doctor who takes ${DP.patient.insurance}…`)],
-    [2400, () => dlog("tool", "search_providers → 1 in-network match(es)",
-      `Found ${slot.provider} — they take ${DP.patient.insurance}.`)],
-    [3600, () => dlog("tool", "check_availability → Tuesday, 2026-08-11 at 10:30 AM",
-      `They have an opening ${slot.day} morning at ${slot.time}.`)],
-    [4400, () => { S.appointment = slot; S.status = "APPOINTMENT_HELD";
-      dlog("state", "Appointment tentatively held — nothing is booked until the patient confirms.",
-        "Holding that time for you — nothing is booked until you say OK."); }],
-    [5200, () => { S.status = "TRANSPORT_NEEDED";
-      dlog("state", "Appointment is 34 miles from home — transportation needed.",
-        `That office is 34 miles away, so let's sort out your ride.`); }],
-    [6000, () => dlog("adapt",
-      `${cgF()} has accepted 25% of past ride requests, so Relage lines up accessible transport as a fallback — but still asks her first per stored preference.`)],
-    [7000, () => { S.sms_outbox.push({ to: DP.caregiver.name, phone: DP.caregiver.phone,
-        body: `Hi ${cgF()}, ${ptF()} has a ${DP.recurring_care[0].type} appointment available ${slot.day}, August 11 at ${slot.time} at ${slot.provider}. Would you be able to drive her? Reply YES or NO.`,
-        time: "", via: "simulator" });
-      S.status = "CAREGIVER_CONTACTED";
-      dlog("sms", `Texted ${cgF()} to ask about the ride. Waiting for reply…`,
-        `We texted ${cgF()} to ask if she can drive you. Waiting to hear back…`);
-      S.busy = false; }],
-  ]);
-  return { started: true };
-}
-
-function demoCaregiverReply(text) {
-  if (S.status !== "CAREGIVER_CONTACTED") return { error: "no outstanding request" };
-  S.busy = true;
-  const t = text.toLowerCase();
-  const canDrive = /\byes\b|i can\b|sure/.test(t) && !/\bno\b|can't|cannot|busy|meeting|not home|but not/.test(t);
-  if (canDrive) {
-    stage([
-      [1500, () => dlog("gemma", `Interpreted reply: ${cgF()} confirmed she can drive.`,
-        `${cgF()} answered: she can drive you!`)],
-      [2500, () => { S.transport = { name: `${DP.caregiver.name} (caregiver)`, type: "caregiver",
-          pickup_time: "9:15 AM", return_pickup_time: "after appointment" };
-        S.plan_explanation = REC_EXPLAIN_CG();
-        S.status = "AWAITING_USER_CONFIRMATION";
-        dlog("state", `${cgF()} can drive — ready for plan review.`,
-          `Good news — ${cgF()} can drive you!`); S.busy = false; }],
-    ]);
-  } else {
-    stage([
-      [1500, () => dlog("gemma", `Interpreted reply: ${cgF()} is unavailable that day.`,
-        `${cgF()} answered: she can't make it that day.`)],
-      [2300, () => { S.status = "CAREGIVER_UNAVAILABLE";
-        dlog("state", `${cgF()} is unavailable. Finding accessible transportation…`,
-          `${cgF()} can't make it this time. Let's find you another ride.`); }],
-      [3100, () => dlog("tool", "check_transport → 2 option(s) matching mobility needs",
-        "Checking local rides with room for your walker…")],
-      [4000, () => { S.transport = DEMO_VAN; S.status = "TRANSPORT_FOUND";
-        dlog("gemma", REC_FALLBACK(), `Found one: ${DEMO_VAN.name}.`); }],
-      [5000, () => { S.plan_explanation = REC_EXPLAIN_VAN;
-        S.status = "AWAITING_USER_CONFIRMATION";
-        dlog("state", "Complete plan ready for review.",
-          "Your plan is ready to look over."); S.busy = false; }],
-    ]);
-  }
-  return { received: true };
-}
-
-function demoConfirm() {
-  if (S.status !== "AWAITING_USER_CONFIRMATION") return { error: "no plan awaiting confirmation" };
-  const a = S.appointment, t = S.transport, care = DP.recurring_care[0].type;
-  S.status = "CONFIRMED";
-  if (t.pickup_time) S.calendar.push({ date: a.date, time: t.pickup_time,
-    title: "Transportation pickup — " + t.name, kind: "transport", status: "reserved" });
-  S.calendar.push({ date: a.date, time: a.time,
-    title: care[0].toUpperCase() + care.slice(1) + " — " + a.provider, kind: "appointment", status: "confirmed" });
-  if (t.return_pickup_time && !t.return_pickup_time.includes("after"))
-    S.calendar.push({ date: a.date, time: t.return_pickup_time,
-      title: "Return transportation pickup", kind: "transport", status: "reserved" });
-  S.calendar.push({ date: "2027-02-10", time: "",
-    title: care[0].toUpperCase() + care.slice(1) + " window begins — auto-coordinate enabled",
-    kind: "future", status: "scheduled" });
-  S.sms_outbox.push({ to: DP.patient.name, phone: "(this device)",
-    body: `Your ${care} appointment is confirmed for ${a.day} at ${a.time}. ${t.name} will pick you up at ${t.pickup_time}. You'll get a reminder the day before and the morning of.`,
-    time: "", via: "simulator" });
-  S.sms_outbox.push({ to: DP.caregiver.name, phone: DP.caregiver.phone,
-    body: `${ptF()}'s ${care} appointment and ride are confirmed for ${a.day} at ${a.time}. We'll keep you posted.`,
-    time: "", via: "simulator" });
-  dlog("state", "Plan confirmed. Calendar updated, notifications sent.");
-  return S;
-}
-
-function demoOnboarding(text) {
-  const prefs = [];
-  if (/morning/i.test(text)) prefs.push({ field: "preferred_times", value: "Mornings" });
-  if (/dark|night/i.test(text)) prefs.push({ field: "transport_preference", value: "Daytime travel only" });
-  if (!prefs.length) prefs.push({ field: "other", value: text.slice(0, 60) });
-  return { preferences: prefs,
-    summary: "Hosted demo interpretation — run the repo locally for live on-device Gemma." };
-}
-
-window.fetch = async function (url, opts) {
-  const path = url.toString().replace(/^https?:\/\/[^/]+/, "");
-  const json = data => ({ ok: true, json: async () => data });
-  await new Promise(r => setTimeout(r, 60));
-  if (path.endsWith("/state")) return json(S);
-  if (path.endsWith("/profile") && opts && opts.method === "POST") {
-    const body = JSON.parse(opts.body);
-    for (const k of ["patient", "caregiver", "recurring_care"]) if (body[k]) DP[k] = { ...DP[k], ...body[k] };
-    if (body.recurring_care) DP.recurring_care = body.recurring_care;
-    demoReset(); return json(DP);
-  }
-  if (path.endsWith("/profile")) return json(DP);
-  if (path.endsWith("/config")) return json({ twilio: false, caregiver_phone: DP.caregiver.phone });
-  if (path.endsWith("/calendar")) return json({ events: S.calendar });
-  if (path.endsWith("/coordinate")) return json(demoCoordinate());
-  if (path.endsWith("/caregiver-response")) return json(demoCaregiverReply(JSON.parse(opts.body).text));
-  if (path.endsWith("/confirm-plan")) return json(demoConfirm());
-  if (path.endsWith("/onboarding-note")) return json(demoOnboarding(JSON.parse(opts.body).text));
-  if (path.endsWith("/reset")) { demoReset(); return json({ reset: true }); }
-  return json({});
-};
-/* ===== end hosted demo shim ===== */
-
-let state = null, profile = null, config = null;
-let currentView = 'home', userPinned = false, lastStatus = '';
-
-const HUMAN_STATUS = {
-  NEEDS_APPOINTMENT: "Here to help you get to your care",
-  APPOINTMENT_HELD: "Finding your appointment…",
-  TRANSPORT_NEEDED: "Sorting out your ride…",
-  CAREGIVER_CONTACTED: "Waiting to hear back about your ride",
-  CAREGIVER_UNAVAILABLE: "Finding you another ride…",
-  TRANSPORT_FOUND: "Almost ready…",
-  AWAITING_USER_CONFIRMATION: "Your plan is ready to review",
-  CONFIRMED: "You're all set!",
-};
-
-function showView(name, pinned = true) {
-  currentView = name; userPinned = pinned;
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.getElementById('view-' + name).classList.add('active');
-  document.getElementById('nav-home').classList.toggle('active', name === 'home');
-  document.getElementById('nav-schedule').classList.toggle('active', name === 'schedule');
-  if (name === 'schedule') refreshCalendar();
-}
-function toggleDrawer() { document.getElementById('drawer').classList.toggle('open'); }
-
-async function startCoordinate() {
-  document.getElementById('goBtn').disabled = true;
-  await fetch('/coordinate', { method: 'POST' });
-  showView('working', false);
-}
-
-async function confirmPlan() {
-  await fetch('/confirm-plan', { method: 'POST' });
-  await refreshCalendar();
-}
-
-async function resetDemo() {
-  await fetch('/reset', { method: 'POST' });
-  localBubbles = []; lastStatus = '';
-  document.getElementById('goBtn').disabled = false;
-  await loadProfile(); showView('home', false);
-}
-
-/* ---------- caregiver phone sim ---------- */
-let localBubbles = [];
-async function sendSms() {
-  const input = document.getElementById('smsInput');
-  const text = input.value.trim();
-  if (!text) return;
-  input.value = '';
-  localBubbles.push({ dir: 'out', text, who: cgFirst(), afterInbound: (state?.sms_outbox || []).length });
-  renderPhone();
-  await fetch('/caregiver-response', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text })
-  });
-}
-function quick(t) { document.getElementById('smsInput').value = t; sendSms(); }
-function cgFirst() { return (profile?.caregiver?.name || 'Caregiver').split(' ')[0]; }
-
-function renderPhone() {
-  const el = document.getElementById('phoneMsgs');
-  const inbound = (state?.sms_outbox || []).map(m =>
-    ({ dir: 'in', text: m.body, who: 'Relage → ' + m.to + (m.via === 'twilio' ? ' · real SMS ✓' : '') }));
-  const all = [...inbound];
-  [...localBubbles].reverse().forEach(b => all.splice(b.afterInbound, 0, b));
-  el.innerHTML = all.map(b =>
-    `<div class="bubble ${b.dir}"><div class="who">${b.who}</div>${b.text}</div>`).join('');
-  el.scrollTop = el.scrollHeight;
-}
-
-/* ---------- friendly progress ---------- */
-function renderWorking() {
-  const items = (state.activity || []).filter(a => a.friendly);
-  const el = document.getElementById('friendlySteps');
-  el.innerHTML = items.map((a, i) => {
-    const last = i === items.length - 1;
-    const ico = (last && (state.busy || state.status === 'CAREGIVER_CONTACTED'))
-      ? '<span class="spinner"></span>' : '✅';
-    return `<div class="step"><span class="ico">${ico}</span><span>${a.friendly}</span></div>`;
-  }).join('');
-  const waiting = state.status === 'CAREGIVER_CONTACTED';
-  document.getElementById('workTitle').textContent =
-    waiting ? `Waiting to hear from ${cgFirst()}…` : 'Working on it…';
-  document.getElementById('workSub').textContent = waiting
-    ? `We texted ${cgFirst()} about your ride. You don't need to do anything.`
-    : "This takes a moment. You don't need to do anything.";
-}
-
-/* ---------- review + done ---------- */
-function planRowsHtml() {
-  const a = state.appointment, t = state.transport;
-  const care = (profile?.recurring_care?.[0]?.type || 'appointment');
-  return `
-    <div class="planrow"><span class="ico">🏥</span><div>
-      <b>${care.charAt(0).toUpperCase() + care.slice(1)}</b>
-      <div class="det">${a.provider}<br>${a.day}, ${fmtLong(a.date)} at ${a.time}</div></div></div>
-    <div class="planrow"><span class="ico">🚐</span><div>
-      <b>Your ride: ${t.name}</b>
-      <div class="det">Picks you up at ${t.pickup_time} · Room for your walker<br>Takes you home ${t.return_pickup_time === 'after appointment' ? 'after your visit' : 'at ' + t.return_pickup_time}</div></div></div>
-    <div class="planrow"><span class="ico">🔔</span><div>
-      <b>We'll remind you</b>
-      <div class="det">The day before, and the morning of. ${cgFirst()} gets updates too.</div></div></div>`;
-}
-function stepsRecapHtml() {
-  return (state.activity || []).filter(a => a.friendly).map(a =>
-    `<div class="step"><span class="ico">✅</span><span>${a.friendly}</span></div>`
-  ).join('');
-}
-
-function renderReview() {
-  document.getElementById('stepsReview').innerHTML = stepsRecapHtml();
-  document.getElementById('planRows').innerHTML = planRowsHtml();
-  if (state.plan_explanation) {
-    document.getElementById('whyBox').style.display = 'block';
-    document.getElementById('whyText').textContent = state.plan_explanation;
-  }
-}
-function renderDone() {
-  const first = (profile?.patient?.name || '').split(' ')[0];
-  document.getElementById('doneGreet').textContent = `You're all set, ${first}! 🎉`;
-  document.getElementById('doneRows').innerHTML = planRowsHtml();
-  document.getElementById('stepsDone').innerHTML = stepsRecapHtml();
-  document.getElementById('doneNote').textContent =
-    `We texted you and ${cgFirst()} a confirmation.`;
-}
-
-/* ---------- schedule ---------- */
-async function refreshCalendar() {
-  const r = await fetch('/calendar');
-  const { events } = await r.json();
-  const fmt = d => {
-    const m = ['','JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][parseInt(d.slice(5,7))];
-    return `${m} ${parseInt(d.slice(-2))}`;
-  };
-  document.getElementById('timeline').innerHTML = events.map(e => `
-    <div class="ev ${e.kind}">
-      <div class="date">${fmt(e.date)}</div>
-      <div><b>${e.time ? e.time + ' — ' : ''}${e.title}</b>
-      <div class="meta">${e.status}</div></div>
-    </div>`).join('');
-}
-function fmtLong(d) {
-  const m = ['','January','February','March','April','May','June','July','August','September','October','November','December'][parseInt(d.slice(5,7))];
-  return `${m} ${parseInt(d.slice(-2))}`;
-}
-
-/* ---------- home ---------- */
-function renderHome() {
-  if (!profile) return;
-  const first = profile.patient.name.split(' ')[0];
-  const h = new Date().getHours();
-  const part = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
-  document.getElementById('greetName').textContent = `Good ${part}, ${first} 👋`;
-  const due = state && state.status === 'NEEDS_APPOINTMENT';
-  document.getElementById('needCard').style.display = due ? 'block' : 'none';
-  document.getElementById('allSet').style.display = due ? 'none' : 'block';
-  if (due) {
-    const rc = profile.recurring_care[0];
-    const care = rc.type.charAt(0).toUpperCase() + rc.type.slice(1);
-    document.getElementById('needTitle').textContent = `${care} — time to book`;
-    document.getElementById('needBody').textContent =
-      `It has been about ${rc.interval_months} months since your last visit to ${rc.provider}. Want us to set up the appointment and a ride?`;
-  }
-}
-
-/* ---------- setup ---------- */
-async function saveProfile() {
-  const mobility = [];
-  if (document.getElementById('f_walker').checked) mobility.push('walker');
-  if (document.getElementById('f_wheel').checked) mobility.push('wheelchair');
-  const body = {
-    patient: {
-      name: `${val('f_first')} ${val('f_last')}`.trim(),
-      age: parseInt(val('f_age')) || 0,
-      home_location: val('f_town'),
-      insurance: val('f_ins'),
-      mobility_needs: mobility,
-      preferred_times: [val('f_time')],
-      preferred_pharmacy: val('f_pharm'),
-    },
-    caregiver: { name: val('f_cgname'), relationship: 'caregiver', phone: val('f_cgphone') },
-    recurring_care: [{
-      type: val('f_care'), provider: val('f_prov'),
-      interval_months: parseInt(val('f_interval')) || 6,
-      last_visit: val('f_last_visit'),
-      source: 'caregiver-entered recurring plan',
-    }],
-  };
-  const r = await fetch('/profile', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  profile = await r.json();
-  localBubbles = []; lastStatus = '';
-  document.getElementById('goBtn').disabled = false;
-  document.getElementById('saveNote').style.display = 'block';
-  setTimeout(() => document.getElementById('saveNote').style.display = 'none', 4000);
-  renderHome();
-}
-function val(id) { return document.getElementById(id).value; }
-
-async function sendOnboard() {
-  const input = document.getElementById('onboardInput');
-  const text = input.value.trim();
-  if (!text) return;
-  const btn = document.getElementById('onboardBtn');
-  btn.disabled = true; btn.textContent = '…';
-  const r = await fetch('/onboarding-note', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text })
-  });
-  const out = await r.json();
-  document.getElementById('onboardOut').style.display = 'block';
-  document.getElementById('onboardText').innerHTML =
-    (out.summary || '') + '<br><span style="font-size:14px;color:var(--muted)">' +
-    (out.preferences || []).map(p => `${p.field}: ${p.value}`).join(' · ') + '</span>';
-  btn.disabled = false; btn.textContent = 'Add'; input.value = '';
-}
-
-/* ---------- tech feed + polling ---------- */
-function renderTech() {
-  document.getElementById('techFeed').innerHTML = (state.activity || []).map(a =>
-    `<div class="tf"><span class="k ${a.kind}">${a.kind}</span>${a.text}</div>`).join('');
-}
-
-async function poll() {
-  try {
-    const r = await fetch('/state');
-    state = await r.json();
-    document.getElementById('statusHuman').textContent =
-      HUMAN_STATUS[state.status] || '';
-    renderPhone(); renderTech();
-    if (state.status !== lastStatus) {
-      lastStatus = state.status; userPinned = false;
-    }
-    // Route the visible screen from the coordination status unless the user
-    // explicitly navigated somewhere (Schedule/Setup stay put).
-    if (!userPinned) {
-      const s = state.status;
-      if (s === 'NEEDS_APPOINTMENT') { renderHome(); if (currentView !== 'home') showView('home', false); }
-      else if (s === 'AWAITING_USER_CONFIRMATION') { renderReview(); if (currentView !== 'review') showView('review', false); }
-      else if (s === 'CONFIRMED') { renderDone(); if (currentView !== 'done') showView('done', false); }
-      else { renderWorking(); if (currentView !== 'working') showView('working', false); }
-    } else if (currentView === 'working') renderWorking();
-    renderHome();
-  } catch (e) { /* server restarting; keep polling */ }
-  setTimeout(poll, 1200);
-}
-
-async function loadProfile() {
-  const r = await fetch('/profile');
-  profile = await r.json();
-  renderHome();
-}
-async function loadConfig() {
-  try {
-    const r = await fetch('/config');
-    config = await r.json();
-    document.getElementById('twStatus').innerHTML = config.twilio
-      ? `🟢 <b>Real SMS on</b> — texting ${config.caregiver_phone} via Twilio`
-      : '⚪ Simulator mode — set TWILIO_* env vars (or .env) for real SMS';
-  } catch (e) {}
-}
-
-loadProfile(); loadConfig(); refreshCalendar(); poll();
-</script>
+  <script src="demo-shim.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
