@@ -4,31 +4,63 @@
     "specialty": "cardiology",
     "location": "Millbrook, PA",
     "distance_miles": 34,
-    "accepts": ["Medicare", "Medicaid", "Commercial"],
+    "accepts": [
+      "Medicare",
+      "Medicaid",
+      "Commercial"
+    ],
     "slots": [
-      { "date": "2026-08-11", "time": "10:30 AM", "day": "Tuesday" },
-      { "date": "2026-08-13", "time": "2:15 PM", "day": "Thursday" },
-      { "date": "2026-08-18", "time": "9:00 AM", "day": "Tuesday" }
-    ]
+      {
+        "date": "2026-08-11",
+        "time": "10:30 AM",
+        "day": "Tuesday"
+      },
+      {
+        "date": "2026-08-13",
+        "time": "2:15 PM",
+        "day": "Thursday"
+      },
+      {
+        "date": "2026-08-18",
+        "time": "9:00 AM",
+        "day": "Tuesday"
+      }
+    ],
+    "website": "regionalheartcenter.org"
   },
   {
     "name": "Valley Cardiology Associates",
     "specialty": "cardiology",
     "location": "Harristown, PA",
     "distance_miles": 51,
-    "accepts": ["Commercial"],
+    "accepts": [
+      "Commercial"
+    ],
     "slots": [
-      { "date": "2026-08-06", "time": "11:00 AM", "day": "Thursday" }
-    ]
+      {
+        "date": "2026-08-06",
+        "time": "11:00 AM",
+        "day": "Thursday"
+      }
+    ],
+    "website": "valleycardiologypa.com"
   },
   {
     "name": "Pine Ridge Family Clinic",
     "specialty": "primary care",
     "location": "Pine Ridge, PA",
     "distance_miles": 2,
-    "accepts": ["Medicare", "Medicaid"],
+    "accepts": [
+      "Medicare",
+      "Medicaid"
+    ],
     "slots": [
-      { "date": "2026-08-05", "time": "9:30 AM", "day": "Wednesday" }
-    ]
+      {
+        "date": "2026-08-05",
+        "time": "9:30 AM",
+        "day": "Wednesday"
+      }
+    ],
+    "website": "pineridgefamilyclinic.org"
   }
 ]

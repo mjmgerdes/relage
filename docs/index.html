@@ -58,6 +58,13 @@
   .steps { display: flex; flex-direction: column; gap: 16px; margin-top: 8px; }
   .step { display: flex; gap: 14px; align-items: flex-start; font-size: 21px; }
   .step .ico { font-size: 24px; width: 34px; flex-shrink: 0; text-align: center; }
+  .srcs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .src {
+    font-size: 13px; background: var(--blue-soft); color: var(--blue);
+    padding: 3px 11px; border-radius: 999px; text-decoration: none;
+    border: 1px solid var(--line);
+  }
+  .src:hover { background: var(--accent-soft); }
   .spinner {
     display: inline-block; width: 22px; height: 22px; border: 3px solid var(--line);
     border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite;
@@ -346,7 +353,11 @@ function demoReset() {
 }
 demoReset();
 
-function dlog(kind, text, friendly) { S.activity.push({ kind, text, friendly: friendly || null }); }
+function dlog(kind, text, friendly, sources) {
+  S.activity.push({ kind, text, friendly: friendly || null, sources: sources || [] });
+}
+const gsrc = (label, q) => ({ label,
+  url: "https://www.google.com/search?q=" + encodeURIComponent(q || label) });
 function stage(steps) { steps.forEach(([ms, fn]) => setTimeout(fn, ms)); }
 
 function demoCoordinate(idx = 0) {
@@ -357,11 +368,15 @@ function demoCoordinate(idx = 0) {
   stage([
     [1200, () => dlog("gemma",
       "Plan: search_providers — We need to find providers in the desired specialty who accept the patient's insurance.",
-      `Finding a doctor who takes ${DP.patient.insurance}…`)],
+      `Finding a doctor who takes ${DP.patient.insurance}…`,
+      [{ label: "medicare.gov/care-compare", url: "https://www.medicare.gov/care-compare/" }])],
     [2400, () => dlog("tool", "search_providers → 1 in-network match(es)",
-      `Found ${slot.provider} — they take ${DP.patient.insurance}.`)],
+      `Found ${slot.provider} — they take ${DP.patient.insurance}.`,
+      [gsrc("regionalheartcenter.org", "Regional Heart Center Millbrook PA"),
+       gsrc("valleycardiologypa.com", "Valley Cardiology Associates Harristown PA")])],
     [3600, () => dlog("tool", "check_availability → Tuesday, 2026-08-11 at 10:30 AM",
-      `They have an opening ${slot.day} morning at ${slot.time}.`)],
+      `They have an opening ${slot.day} morning at ${slot.time}.`,
+      [gsrc("regionalheartcenter.org · scheduling", "Regional Heart Center Millbrook PA appointments")])],
     [4400, () => { S.appointment = slot; S.status = "APPOINTMENT_HELD";
       dlog("state", "Appointment tentatively held — nothing is booked until the patient confirms.",
         "Holding that time for you — nothing is booked until you say OK."); }],
@@ -405,7 +420,10 @@ function demoCaregiverReply(text) {
         dlog("state", `${cgF()} is unavailable. Finding accessible transportation…`,
           `${cgF()} can't make it this time. Let's find you another ride.`); }],
       [3100, () => dlog("tool", "check_transport → 2 option(s) matching mobility needs",
-        "Checking local rides with room for your walker…")],
+        "Checking local rides with room for your walker…",
+        [gsrc("pineridgetransit.org", "Pine Ridge Rural Transit Pennsylvania"),
+         gsrc("laurelcountyvolunteers.org", "Laurel County Volunteer Drivers Pennsylvania"),
+         gsrc("findarideguide.org (PA rural transit)", "Pennsylvania rural medical transportation directory")])],
       [4000, () => { S.transport = DEMO_VAN; S.status = "TRANSPORT_FOUND";
         dlog("gemma", REC_FALLBACK(), `Found one: ${DEMO_VAN.name}.`); }],
       [5000, () => { S.plan_explanation = REC_EXPLAIN_VAN;
@@ -553,6 +571,13 @@ function renderPhone() {
 }
 
 /* ---------- friendly progress ---------- */
+function srcChips(a) {
+  if (!a.sources || !a.sources.length) return '';
+  return '<div class="srcs">' + a.sources.map(s =>
+    `<a class="src" href="${s.url}" target="_blank" rel="noopener">🔗 ${s.label}</a>`
+  ).join('') + '</div>';
+}
+
 function renderWorking() {
   const items = (state.activity || []).filter(a => a.friendly);
   const el = document.getElementById('friendlySteps');
@@ -560,7 +585,7 @@ function renderWorking() {
     const last = i === items.length - 1;
     const ico = (last && (state.busy || state.status === 'CAREGIVER_CONTACTED'))
       ? '<span class="spinner"></span>' : '✅';
-    return `<div class="step"><span class="ico">${ico}</span><span>${a.friendly}</span></div>`;
+    return `<div class="step"><span class="ico">${ico}</span><span>${a.friendly}${srcChips(a)}</span></div>`;
   }).join('');
   const waiting = state.status === 'CAREGIVER_CONTACTED';
   document.getElementById('workTitle').textContent =
@@ -589,7 +614,7 @@ function planRowsHtml() {
 }
 function stepsRecapHtml() {
   return (state.activity || []).filter(a => a.friendly).map(a =>
-    `<div class="step"><span class="ico">✅</span><span>${a.friendly}</span></div>`
+    `<div class="step"><span class="ico">✅</span><span>${a.friendly}${srcChips(a)}</span></div>`
   ).join('');
 }
 

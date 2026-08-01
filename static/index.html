@@ -58,6 +58,13 @@
   .steps { display: flex; flex-direction: column; gap: 16px; margin-top: 8px; }
   .step { display: flex; gap: 14px; align-items: flex-start; font-size: 21px; }
   .step .ico { font-size: 24px; width: 34px; flex-shrink: 0; text-align: center; }
+  .srcs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .src {
+    font-size: 13px; background: var(--blue-soft); color: var(--blue);
+    padding: 3px 11px; border-radius: 999px; text-decoration: none;
+    border: 1px solid var(--line);
+  }
+  .src:hover { background: var(--accent-soft); }
   .spinner {
     display: inline-block; width: 22px; height: 22px; border: 3px solid var(--line);
     border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite;
@@ -379,6 +386,13 @@ function renderPhone() {
 }
 
 /* ---------- friendly progress ---------- */
+function srcChips(a) {
+  if (!a.sources || !a.sources.length) return '';
+  return '<div class="srcs">' + a.sources.map(s =>
+    `<a class="src" href="${s.url}" target="_blank" rel="noopener">🔗 ${s.label}</a>`
+  ).join('') + '</div>';
+}
+
 function renderWorking() {
   const items = (state.activity || []).filter(a => a.friendly);
   const el = document.getElementById('friendlySteps');
@@ -386,7 +400,7 @@ function renderWorking() {
     const last = i === items.length - 1;
     const ico = (last && (state.busy || state.status === 'CAREGIVER_CONTACTED'))
       ? '<span class="spinner"></span>' : '✅';
-    return `<div class="step"><span class="ico">${ico}</span><span>${a.friendly}</span></div>`;
+    return `<div class="step"><span class="ico">${ico}</span><span>${a.friendly}${srcChips(a)}</span></div>`;
   }).join('');
   const waiting = state.status === 'CAREGIVER_CONTACTED';
   document.getElementById('workTitle').textContent =
@@ -415,7 +429,7 @@ function planRowsHtml() {
 }
 function stepsRecapHtml() {
   return (state.activity || []).filter(a => a.friendly).map(a =>
-    `<div class="step"><span class="ico">✅</span><span>${a.friendly}</span></div>`
+    `<div class="step"><span class="ico">✅</span><span>${a.friendly}${srcChips(a)}</span></div>`
   ).join('');
 }
 
