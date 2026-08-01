@@ -150,7 +150,7 @@ def place_call(to_phone: str, twiml_url: str,
               # the caregiver's answer; AnsweredBy arrives with the TwiML
               # request and machine pickups are hung up + redialed.
               "MachineDetection": "Enable",
-              "MachineDetectionTimeout": "5"}
+              "MachineDetectionTimeout": "3"}
     if status_callback:
         params["StatusCallback"] = status_callback
         params["StatusCallbackMethod"] = "POST"

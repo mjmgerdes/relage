@@ -490,16 +490,29 @@ def _pregenerate_tts():
 
 
 def _place_caregiver_call() -> dict:
+    # One call in flight at a time — a second dial while one is live puts
+    # the callee's phone on busy/voicemail and races the webhooks.
+    if STATE.get("active_call_sid"):
+        log("call", "Call already in flight — skipping duplicate dial.")
+        return {}
     base = _os.environ["BASE_URL"]
     to = _os.environ.get("CAREGIVER_PHONE") or PROFILE["caregiver"]["phone"]
     call = tools.place_call(to, f"{base}/voice-twiml",
                             status_callback=f"{base}/call-status")
+    STATE["active_call_sid"] = call.get("sid", "")
     STATE["call_attempts"] = STATE.get("call_attempts", 0) + 1
     cg = PROFILE["caregiver"]["name"].split()[0]
     log("call", f"Placed voice call to {to} "
                 f"(attempt {STATE['call_attempts']}, sid {call.get('sid', '?')})",
         friendly=f"Calling {cg}'s phone to ask about the ride…")
     return call
+
+
+def _is_active_call(form) -> bool:
+    """Webhook guard: only the current run's call may drive the state
+    machine. Stale callbacks from earlier test calls are ignored."""
+    sid = form.get("CallSid", "")
+    return bool(sid) and sid == STATE.get("active_call_sid")
 
 
 @app.post("/call-caregiver")
@@ -523,9 +536,14 @@ def call_caregiver():
 @app.post("/call-status")
 async def call_status(request: Request):
     """Twilio's final-status callback. If the caregiver didn't pick up,
-    automatically redial after a short pause (up to MAX_CALL_ATTEMPTS)."""
+    automatically redial after a short pause (up to MAX_CALL_ATTEMPTS).
+    Callbacks from calls that aren't the current one are ignored."""
     form = await request.form()
+    if not _is_active_call(form):
+        return {"ok": True, "ignored": "stale call"}
     status = form.get("CallStatus", "")
+    if status in ("completed", "no-answer", "busy", "failed", "canceled"):
+        STATE["active_call_sid"] = ""   # line is free again
     if (status in ("no-answer", "busy", "failed", "canceled")
             and STATE["status"] == "CAREGIVER_CONTACTED"
             and STATE.get("call_attempts", 0) < MAX_CALL_ATTEMPTS):
@@ -595,6 +613,11 @@ async def voice_twiml(request: Request, retry: int = 0):
     before giving up. Machine pickups (AnsweredBy) are hung up and redialed
     so a voicemail greeting is never treated as the caregiver's answer."""
     form = await request.form()
+    if not _is_active_call(form):
+        return _Response(
+            content='<?xml version="1.0" encoding="UTF-8"?>'
+                    '<Response><Hangup/></Response>',
+            media_type="text/xml")
     answered_by = form.get("AnsweredBy", "")
     if answered_by.startswith("machine") or answered_by == "fax":
         _schedule_redial(f"Voicemail answered ({answered_by})")
@@ -606,12 +629,14 @@ async def voice_twiml(request: Request, retry: int = 0):
         fallback = _speak("giveup")
     else:
         fallback = '<Redirect method="POST">/voice-twiml?retry=1</Redirect>'
+    # The question plays OUTSIDE the Gather: speech is only captured after
+    # the prompt finishes, so a "Hello?" on pickup can't be mistaken for
+    # the answer. The Gather then listens in silence for up to 8 seconds.
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
+  {_speak("retry" if retry else "ask")}
   <Gather input="speech" action="/voice-result" method="POST"
-          timeout="8" speechTimeout="2">
-    {_speak("retry" if retry else "ask")}
-  </Gather>
+          timeout="8" speechTimeout="2"/>
   {fallback}
 </Response>"""
     return _Response(content=xml, media_type="text/xml")
@@ -622,6 +647,11 @@ async def voice_result(request: Request):
     """Gather callback: Twilio posts the speech transcription here. It feeds
     the exact same Gemma interpretation worker the SMS webhook uses."""
     form = await request.form()
+    if not _is_active_call(form):
+        return _Response(
+            content='<?xml version="1.0" encoding="UTF-8"?>'
+                    '<Response><Hangup/></Response>',
+            media_type="text/xml")
     text = form.get("SpeechResult", "")
     cg = PROFILE["caregiver"]["name"].split()[0]
     # Second line of defense: a voicemail greeting that slipped past AMD
@@ -653,7 +683,7 @@ def reset():
         "status": "NEEDS_APPOINTMENT", "activity": [], "appointment": None,
         "transport_options": [], "transport": None, "caregiver_reply": None,
         "plan_explanation": "", "sms_outbox": [], "busy": False,
-        "tts": {}, "call_attempts": 0,
+        "tts": {}, "call_attempts": 0, "active_call_sid": "",
         "calendar": [{"date": "2026-02-08", "time": "10:00 AM",
                       "title": "Cardiology follow-up — Regional Heart Center",
                       "kind": "past", "status": "completed"}],
