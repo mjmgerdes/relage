@@ -48,7 +48,7 @@ MODEL_DEEP = os.environ.get("GEMMA_DEEP", "gemma4:latest")
 # (Gemini API, gemma models, free tier). On-device stays the default and the
 # privacy story: the fallback exists so the hosted demo runs real Gemma too.
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.environ.get("GEMINI_GEMMA_MODEL", "gemma-3-27b-it")
+GEMINI_MODEL = os.environ.get("GEMINI_GEMMA_MODEL", "gemma-4-31b-it")
 GEMINI_URL = ("https://generativelanguage.googleapis.com/v1beta/models/"
               f"{GEMINI_MODEL}:generateContent")
 

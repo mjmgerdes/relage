@@ -331,7 +331,7 @@
       <h3>Asking Sarah</h3>
       <p class="lede" style="margin-bottom:6px" id="outreachLede">We reached out about driving you.</p>
       <div class="note" id="voiceNote" style="display:none"></div>
-      <button class="bigbtn clay" id="callBtn" onclick="callCaregiver()" style="display:none">📞 Call Sarah's real phone</button>
+      <button class="bigbtn clay" id="callBtn" onclick="callCaregiver()" style="display:none">📞 Call Sarah again now</button>
 
       <div class="phone" style="margin-top:14px">
         <div class="ph-head"><span>📱</span><span id="phoneHead">Sarah's phone</span></div>
@@ -494,9 +494,15 @@ function fmtShort(d){ return d ? `${MONTHS[+d.slice(5,7)].slice(0,3).toUpperCase
 
 /* ─────────────── actions ─────────────── */
 
-async function startCoordinate(){
+// `index` picks which recurring-care entry to coordinate. The backend
+// defaults to 0 when the body is missing, so omitting it would silently
+// coordinate cardiology no matter which card was tapped.
+async function startCoordinate(index = 0){
   document.querySelectorAll('.coordBtn').forEach(b => b.disabled = true);
-  await fetch('/coordinate', {method:'POST'});
+  await fetch('/coordinate', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({index})
+  });
   showView('coordinate', false);
 }
 
@@ -573,11 +579,14 @@ function renderProfile(){
   const p = profile.patient, c = profile.caregiver;
   const mob = (p.mobility_needs || []).length
     ? p.mobility_needs.map(titleCase).join(', ') : 'No aid';
+  const home = [p.street_address, p.home_location].filter(Boolean).join(', ');
+  const pharmacy = [p.preferred_pharmacy, p.pharmacy_address]
+    .filter(Boolean).join(' — ');
   document.getElementById('profileRows').innerHTML = [
-    ['Name', p.name], ['Age', p.age], ['Home', p.home_location],
+    ['Name', p.name], ['Age', p.age], ['Home', home],
     ['Insurance', p.insurance], ['Gets around with', mob],
     ['Best time for visits', (p.preferred_times || []).map(titleCase).join(', ')],
-    ['Preferred pharmacy', p.preferred_pharmacy],
+    ['Preferred pharmacy', pharmacy],
     ['Primary caregiver', `${c.name} (${c.relationship})`],
   ].map(([k, v]) => kv(k, v)).join('');
 
@@ -585,10 +594,11 @@ function renderProfile(){
     (profile.recurring_care || []).map(rc =>
       kv('Type of care', titleCase(rc.type)) +
       kv('Usual provider', rc.provider) +
+      (rc.address ? kv('Address', rc.address) : '') +
       kv('How often', `Every ${rc.interval_months} months`) +
       kv('Last visit', fmtLong(rc.last_visit)) +
       kv('Where this came from', rc.source)
-    ).join('');
+    ).join('<div style="height:18px"></div>');
 }
 
 async function sendOnboard(){
@@ -637,31 +647,48 @@ async function renderToday(){
   if(!needs && !done)
     document.getElementById('inFlightBody').textContent = HUMAN_STATUS[s] || 'Working on it…';
 
-  // /actions only returns cards while status is NEEDS_APPOINTMENT.
   const box = document.getElementById('actionCards');
   if(!needs){ box.innerHTML = ''; lastActionsHtml = null; return; }
-  try{
-    const {cards} = await (await fetch('/actions')).json();
-    const html = (cards || []).map(c => `
+
+  // Rendered from profile.recurring_care rather than GET /actions: the
+  // profile carries the array index /coordinate needs, each entry's own
+  // address, and the last_visit needed to work out what is actually due.
+  // /actions returns a card per entry with no index and a hardcoded
+  // "34 miles" for every one of them.
+  const html = (profile.recurring_care || []).map((rc, i) => {
+    if(monthsSince(rc.last_visit) < (rc.interval_months || 6)) return '';
+    const care = titleCase(rc.type);
+    return `
       <div class="card">
         <span class="pill due">Due now</span>
-        <h3 style="margin-top:9px">${esc(c.title)}</h3>
+        <h3 style="margin-top:9px">${esc(care)} — time to book</h3>
         <div style="margin:12px 0 0">
-          ${kv('Last visit', fmtLong(c.last_visit))}
-          ${kv('Usual interval', c.interval)}
-          ${kv('Preferred provider', c.provider)}
-          ${kv('Distance', c.distance)}
+          ${kv('Last visit', fmtLong(rc.last_visit))}
+          ${kv('Usual interval', `Every ${esc(rc.interval_months)} months`)}
+          ${kv('Preferred provider', rc.provider)}
+          ${rc.address ? kv('Address', rc.address) : ''}
         </div>
         <div class="note info" style="font-size:15px">
-          Showing because of your ${esc(c.source)} — not because Relage decided you need care.
+          Showing because of your ${esc(rc.source)} — not because Relage
+          decided you need care.
         </div>
-        <button class="bigbtn coordBtn" onclick="startCoordinate()">Coordinate appointment</button>
-      </div>`).join('');
-    // Only touch the DOM when the content actually changed — re-rendering
-    // every poll would destroy the button mid-click and reset its disabled
-    // state after startCoordinate().
-    if(html !== lastActionsHtml){ box.innerHTML = html; lastActionsHtml = html; }
-  }catch(e){ /* server restarting */ }
+        <button class="bigbtn coordBtn" onclick="startCoordinate(${i})">Coordinate appointment</button>
+      </div>`;
+  }).join('');
+
+  // Only touch the DOM when the content actually changed — re-rendering
+  // every poll would destroy the button mid-click and reset the disabled
+  // state startCoordinate() just set.
+  if(html !== lastActionsHtml){ box.innerHTML = html; lastActionsHtml = html; }
+
+  if(!html.trim()) document.getElementById('allSetCard').style.display = 'block';
+}
+
+// Whole months elapsed since a YYYY-MM-DD date.
+function monthsSince(dateStr){
+  if(!dateStr) return 999;
+  const d = new Date(dateStr + 'T12:00:00'), now = new Date();
+  return (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
 }
 
 /* ─────────────── 3. coordinate ─────────────── */
@@ -686,9 +713,14 @@ function renderCoordinate(){
   document.getElementById('coordTitle').textContent =
     waiting ? `Waiting to hear from ${cgFirst()}…`
     : state?.status === 'CONFIRMED' ? 'All done 🎉' : 'Working on it…';
+  // With voice configured the backend auto-dials during coordination, so
+  // say "calling" rather than "texted".
   document.getElementById('coordSub').textContent =
-    waiting ? `We asked ${cgFirst()} about your ride. You don't need to do anything.`
-            : "This takes a moment. You don't need to do anything.";
+    waiting
+      ? (config?.voice
+          ? `We're calling ${cgFirst()}'s phone about your ride. You don't need to do anything.`
+          : `We asked ${cgFirst()} about your ride. You don't need to do anything.`)
+      : "This takes a moment. You don't need to do anything.";
 
   const a = state?.appointment, card = document.getElementById('apptCard');
   if(a){
@@ -756,7 +788,9 @@ function renderRide(){
     document.getElementById('phoneHead').textContent = `${cgFirst()}'s phone`;
     document.getElementById('smsInput').placeholder = `Reply as ${cgFirst()}…`;
     document.getElementById('outreachLede').textContent = waiting
-      ? `We asked ${cgFirst()} whether she can drive you. Waiting to hear back…`
+      ? (config?.voice
+          ? `Relage is calling ${cgFirst()} to ask about the ride. If she doesn't pick up it redials automatically, and voicemail is never taken as her answer.`
+          : `We asked ${cgFirst()} whether she can drive you. Waiting to hear back…`)
       : `${cgFirst()} has answered.`;
     // The real call is only offered while the ask is still outstanding.
     document.getElementById('callBtn').style.display =
@@ -809,7 +843,10 @@ function stepsRecapHtml(){
 
 function planRowsHtml(){
   const a = state.appointment, t = state.transport;
-  const care = titleCase(profile?.recurring_care?.[0]?.type || 'appointment');
+  // The backend stamps the coordinated entry's type onto the slot; falling
+  // back to recurring_care[0] would mislabel any non-first appointment.
+  const care = titleCase(a.care_type || profile?.recurring_care?.[0]?.type
+                         || 'appointment');
   const home = t.return_pickup_time === 'after appointment'
     ? 'after your visit' : 'at ' + t.return_pickup_time;
   const walker = t.walker_accommodation ? ' · Room for your walker' : '';
