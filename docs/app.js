@@ -246,6 +246,18 @@ function renderPhone() {
   el.scrollTop = el.scrollHeight;
 }
 
+function sourceChips(item) {
+  const sources = item && Array.isArray(item.sources) ? item.sources : [];
+  if (!sources.length) return '';
+  const chips = sources.map(function (source) {
+    const rawUrl = String(source.url || '');
+    const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : '#';
+    return '<a class="source-chip" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer"' +
+      ' aria-label="Open source: ' + esc(source.label || 'Source') + '"><span>' + esc(source.label || 'Source') + '</span> ↗</a>';
+  }).join('');
+  return '<span class="source-chips" aria-label="Sources consulted">' + chips + '</span>';
+}
+
 function renderWorking() {
   if (!state) return;
   const items = (state.activity || []).filter(function (item) { return item.friendly; });
@@ -267,7 +279,7 @@ function renderWorking() {
     const isLast = index === items.length - 1;
     const isCurrent = isLast && (state.busy || waiting);
     const marker = isCurrent ? '<span class="spinner"></span>' : '✓';
-    return '<div class="step' + (isCurrent ? ' current' : '') + '"><span class="step-icon">' + marker + '</span><span>' + esc(item.friendly) + '</span></div>';
+    return '<div class="step' + (isCurrent ? ' current' : '') + '"><span class="step-icon">' + marker + '</span><span>' + esc(item.friendly) + sourceChips(item) + '</span></div>';
   }).join('');
 }
 
@@ -293,7 +305,7 @@ function planRowsHtml() {
 
 function stepsRecapHtml() {
   return ((state && state.activity) || []).filter(function (item) { return item.friendly; }).map(function (item) {
-    return '<div class="step"><span class="step-icon">✓</span><span>' + esc(item.friendly) + '</span></div>';
+    return '<div class="step"><span class="step-icon">✓</span><span>' + esc(item.friendly) + sourceChips(item) + '</span></div>';
   }).join('');
 }
 

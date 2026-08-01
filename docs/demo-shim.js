@@ -95,8 +95,8 @@ function demoReset() {
   };
 }
 
-function demoLog(kind, text, friendly) {
-  DEMO_STATE.activity.push({ kind: kind, text: text, friendly: friendly || null });
+function demoLog(kind, text, friendly, sources) {
+  DEMO_STATE.activity.push({ kind: kind, text: text, friendly: friendly || null, sources: sources || [] });
 }
 
 function demoStage(delay, action) {
@@ -114,13 +114,19 @@ function demoCoordinate(careIndex) {
   const slot = DEMO_SLOT(DEMO_CARE_INDEX);
   const careLabel = care.type.replace(/\b\w/g, function (letter) { return letter.toUpperCase(); });
   demoStage(700, function () {
-    demoLog('gemma', 'Plan: search_providers [gemma4:8b 9.8s]', 'Checking ' + careLabel.toLowerCase() + ' providers that take ' + DEMO_PROFILE.patient.insurance + '.');
+    demoLog('gemma', 'Plan: search_providers [gemma4:8b 9.8s]', 'Checking ' + careLabel.toLowerCase() + ' providers that take ' + DEMO_PROFILE.patient.insurance + '.', [
+      { label: 'medicare.gov/care-compare', url: 'https://www.medicare.gov/care-compare/' }
+    ]);
   });
   demoStage(1550, function () {
-    demoLog('tool', 'search_providers: 1 in-network match', care.provider + ' takes ' + DEMO_PROFILE.patient.insurance + '.');
+    demoLog('tool', 'search_providers: 1 in-network match', care.provider + ' takes ' + DEMO_PROFILE.patient.insurance + '.', [
+      { label: care.provider + ' · provider listing', url: 'https://www.google.com/search?q=' + encodeURIComponent(care.provider + ' Pennsylvania') }
+    ]);
   });
   demoStage(2400, function () {
-    demoLog('tool', 'check_availability: Tuesday 2026-08-11 at 10:30 AM', 'They have a Tuesday morning opening at 10:30 AM.');
+    demoLog('tool', 'check_availability: Tuesday 2026-08-11 at 10:30 AM', 'They have a Tuesday morning opening at 10:30 AM.', [
+      { label: care.provider + ' · scheduling', url: 'https://www.google.com/search?q=' + encodeURIComponent(care.provider + ' appointments') }
+    ]);
   });
   demoStage(3200, function () {
     DEMO_STATE.appointment = slot;
@@ -181,7 +187,10 @@ function demoCaregiverReply(text) {
       demoLog('state', 'Caregiver unavailable; fallback search started', 'Relage is finding another ride.');
     });
     demoStage(2550, function () {
-      demoLog('tool', 'check_transport: 2 walker-accessible options', 'Two local services can carry your walker.');
+      demoLog('tool', 'check_transport: 2 walker-accessible options', 'Two local services can carry your walker.', [
+        { label: 'Pine Ridge Medical Access Van', url: 'https://www.google.com/search?q=Pennsylvania+rural+medical+transportation' },
+        { label: 'findarideguide.org · PA rural transit', url: 'https://www.google.com/search?q=Pennsylvania+rural+medical+transportation+directory' }
+      ]);
     });
     demoStage(3450, function () {
       DEMO_STATE.transport = DEMO_VAN;

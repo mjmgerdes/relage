@@ -71,11 +71,24 @@ def gmeta() -> str:
 
 
 def log(kind: str, text: str, detail: dict | None = None,
-        friendly: str | None = None):
+        friendly: str | None = None, sources: list | None = None):
     """Record an activity item. `text` is the technical line (demo drawer);
-    `friendly` is the plain-language line shown to the patient."""
+    `friendly` is the plain-language line shown to the patient; `sources`
+    are the places the agent consulted for this step, rendered as link
+    chips (synthetic datasets stand in for the real integrations)."""
     STATE["activity"].append({"kind": kind, "text": text,
-                              "friendly": friendly, "detail": detail or {}})
+                              "friendly": friendly, "sources": sources or [],
+                              "detail": detail or {}})
+
+
+def src(label: str, query: str | None = None, url: str | None = None) -> dict:
+    """A source chip. Fictional practices get a safe search URL rather than
+    an invented domain that might resolve to someone's real site."""
+    import urllib.parse
+    if not url:
+        url = ("https://www.google.com/search?q="
+               + urllib.parse.quote(query or label))
+    return {"label": label, "url": url}
 
 
 def caregiver_acceptance_rate() -> float:
@@ -191,7 +204,9 @@ def _coordinate_worker(idx: int = 0):
                      "location": patient["home_location"]},
             default="search_providers")
         log("gemma", f"Plan: {plan['tool']} — {plan['reason']}{gmeta()}", plan,
-            friendly=f"Finding a doctor who takes {patient['insurance']}…")
+            friendly=f"Finding a doctor who takes {patient['insurance']}…",
+            sources=[src("medicare.gov/care-compare",
+                         url="https://www.medicare.gov/care-compare/")])
 
         specialty = ("cardiology" if "cardio" in care["type"].lower()
                      else "primary care")
@@ -200,14 +215,20 @@ def _coordinate_worker(idx: int = 0):
         log("tool", f"search_providers → {len(providers)} in-network match(es)",
             {"top": providers[0]["name"] if providers else None},
             friendly=f"Found {providers[0]['name']} — they take "
-                     f"{patient['insurance']}.")
+                     f"{patient['insurance']}.",
+            sources=[src(p.get("website", p["name"]),
+                         f"{p['name']} {p['location']}")
+                     for p in providers[:3]])
 
         slot = tools.check_availability(providers[0]["name"],
                                         patient["preferred_times"])
         log("tool", f"check_availability → {slot['day']}, {slot['date']} "
                     f"at {slot['time']}", slot,
             friendly=f"They have an opening {slot['day']} morning at "
-                     f"{slot['time']}.")
+                     f"{slot['time']}.",
+            sources=[src(f"{providers[0].get('website', '')} · scheduling",
+                         f"{providers[0]['name']} {providers[0]['location']} "
+                         "appointments")])
 
         slot["care_type"] = care["type"]
         STATE["appointment"] = tools.hold_appointment(slot)
@@ -335,7 +356,13 @@ def _caregiver_worker(text: str):
                                             slot["time"])
             log("tool", f"check_transport → {len(options)} option(s) matching "
                         "mobility needs over the distance", {},
-                friendly="Checking local rides with room for your walker…")
+                friendly="Checking local rides with room for your walker…",
+                sources=[src(o.get("website", o["name"]),
+                             f"{o['name']} Pennsylvania")
+                         for o in options[:3]]
+                        + [src("findarideguide.org (PA rural transit)",
+                               "Pennsylvania rural medical transportation "
+                               "directory")])
 
             # -- Gemma use #4: constraint-aware replanning over the options
             pick = _replan_or_default(options)
