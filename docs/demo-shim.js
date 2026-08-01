@@ -7,24 +7,36 @@ let DEMO_PROFILE = {
     name: 'Eleanor Brooks',
     age: 78,
     home_location: 'Pine Ridge, Pennsylvania',
+    street_address: '412 Laurel Hollow Road',
     insurance: 'Medicare',
     mobility_needs: ['walker'],
     preferred_times: ['weekday mornings'],
-    preferred_pharmacy: 'Pine Ridge Pharmacy'
+    preferred_pharmacy: 'Pine Ridge Pharmacy',
+    pharmacy_address: '18 Main Street, Pine Ridge, PA'
   },
   caregiver: {
     name: 'Sarah Brooks',
     relationship: 'daughter',
-    phone: '+1-555-0142'
+    phone: '+19736341419'
   },
   recurring_care: [{
     type: 'cardiology follow-up',
     provider: 'Regional Heart Center',
+    address: '825 Medical Campus Drive, Millbrook, PA',
     interval_months: 6,
     last_visit: '2026-02-08',
     source: 'patient-entered recurring plan'
+  }, {
+    type: 'annual eye exam',
+    provider: 'Pine Ridge Vision Center',
+    address: '94 Market Street, Pine Ridge, PA',
+    interval_months: 12,
+    last_visit: '2026-04-22',
+    source: 'patient-entered recurring plan'
   }]
 };
+
+let DEMO_CARE_INDEX = 0;
 
 const BASE_CALENDAR = function () {
   return [{
@@ -36,12 +48,14 @@ const BASE_CALENDAR = function () {
   }];
 };
 
-const DEMO_SLOT = function () {
+const DEMO_SLOT = function (careIndex) {
+  const care = DEMO_PROFILE.recurring_care[careIndex] || DEMO_PROFILE.recurring_care[0];
   return {
     date: '2026-08-11',
     time: '10:30 AM',
     day: 'Tuesday',
-    provider: DEMO_PROFILE.recurring_care[0].provider,
+    provider: care.provider,
+    care_type: care.type,
     distance_miles: 34,
     status: 'held'
   };
@@ -89,17 +103,21 @@ function demoStage(delay, action) {
   demoTimers.push(setTimeout(action, delay));
 }
 
-function demoCoordinate() {
+function demoCoordinate(careIndex) {
   if (DEMO_STATE.status !== 'NEEDS_APPOINTMENT' || DEMO_STATE.busy) {
     return { error: 'Care journey already started' };
   }
+  DEMO_CARE_INDEX = Number.isInteger(careIndex) ? careIndex : 0;
+  const care = DEMO_PROFILE.recurring_care[DEMO_CARE_INDEX] || DEMO_PROFILE.recurring_care[0];
   DEMO_STATE.busy = true;
-  const slot = DEMO_SLOT();
+  DEMO_STATE.care_index = DEMO_CARE_INDEX;
+  const slot = DEMO_SLOT(DEMO_CARE_INDEX);
+  const careLabel = care.type.replace(/\b\w/g, function (letter) { return letter.toUpperCase(); });
   demoStage(700, function () {
-    demoLog('gemma', 'Plan: search_providers [gemma4:8b 9.8s]', 'Checking cardiology offices that take ' + DEMO_PROFILE.patient.insurance + '.');
+    demoLog('gemma', 'Plan: search_providers [gemma4:8b 9.8s]', 'Checking ' + careLabel.toLowerCase() + ' providers that take ' + DEMO_PROFILE.patient.insurance + '.');
   });
   demoStage(1550, function () {
-    demoLog('tool', 'search_providers: 1 in-network match', 'Regional Heart Center takes ' + DEMO_PROFILE.patient.insurance + '.');
+    demoLog('tool', 'search_providers: 1 in-network match', care.provider + ' takes ' + DEMO_PROFILE.patient.insurance + '.');
   });
   demoStage(2400, function () {
     demoLog('tool', 'check_availability: Tuesday 2026-08-11 at 10:30 AM', 'They have a Tuesday morning opening at 10:30 AM.');
@@ -120,7 +138,7 @@ function demoCoordinate() {
     DEMO_STATE.sms_outbox.push({
       to: DEMO_PROFILE.caregiver.name,
       phone: DEMO_PROFILE.caregiver.phone,
-      body: 'Hi ' + demoCaregiverFirst() + ', ' + demoPatientFirst() + ' has a cardiology follow-up available Tuesday, August 11 at 10:30 AM at Regional Heart Center. Can you drive her? Reply YES or NO.',
+      body: 'Hi ' + demoCaregiverFirst() + ', ' + demoPatientFirst() + ' has a ' + care.type + ' available Tuesday, August 11 at 10:30 AM at ' + care.provider + '. Can you drive her? Reply YES or NO.',
       time: '',
       via: 'simulator'
     });
@@ -199,7 +217,7 @@ function demoConfirm() {
   DEMO_STATE.calendar.push({
     date: appointment.date,
     time: appointment.time,
-    title: 'Cardiology follow-up · ' + appointment.provider,
+    title: appointment.care_type + ' · ' + appointment.provider,
     kind: 'appointment',
     status: 'confirmed'
   });
@@ -215,14 +233,14 @@ function demoConfirm() {
   DEMO_STATE.calendar.push({
     date: '2027-02-10',
     time: '',
-    title: 'Next cardiology follow-up window',
+    title: 'Next ' + appointment.care_type + ' window',
     kind: 'future',
     status: 'scheduled'
   });
   DEMO_STATE.sms_outbox.push({
     to: DEMO_PROFILE.patient.name,
     phone: '(this device)',
-    body: 'Your cardiology appointment and ride are confirmed for Tuesday, August 11.',
+    body: 'Your ' + appointment.care_type + ' and ride are confirmed for Tuesday, August 11.',
     time: '',
     via: 'simulator'
   });
@@ -268,7 +286,10 @@ window.fetch = async function (url, options) {
   if (path.endsWith('/profile')) return response(DEMO_PROFILE);
   if (path.endsWith('/config')) return response({ twilio: false, voice: false, caregiver_phone: DEMO_PROFILE.caregiver.phone });
   if (path.endsWith('/calendar')) return response({ events: DEMO_STATE.calendar });
-  if (path.endsWith('/coordinate')) return response(demoCoordinate());
+  if (path.endsWith('/coordinate')) {
+    const body = options && options.body ? JSON.parse(options.body) : {};
+    return response(demoCoordinate(body.index));
+  }
   if (path.endsWith('/caregiver-response')) return response(demoCaregiverReply(JSON.parse(options.body).text));
   if (path.endsWith('/confirm-plan')) return response(demoConfirm());
   if (path.endsWith('/onboarding-note')) return response(demoOnboarding(JSON.parse(options.body).text));

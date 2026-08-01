@@ -24,7 +24,7 @@
     <div class="header-actions">
       <button class="quiet-button" type="button" onclick="showView('setup')">
         <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.42 1.42-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V20h-2v-.48A1.7 1.7 0 0 0 12.38 18a1.7 1.7 0 0 0-1.88.34l-.06.06-1.42-1.42.06-.06A1.7 1.7 0 0 0 9.42 15a1.7 1.7 0 0 0-1.56-1.03H7.4v-2h.46A1.7 1.7 0 0 0 9.42 11a1.7 1.7 0 0 0-.34-1.88l-.06-.06 1.42-1.42.06.06A1.7 1.7 0 0 0 12.38 8a1.7 1.7 0 0 0 1.03-1.56V6h2v.44A1.7 1.7 0 0 0 16.44 8a1.7 1.7 0 0 0 1.88-.34l.06-.06 1.42 1.42-.06.06A1.7 1.7 0 0 0 19.4 11a1.7 1.7 0 0 0 1.56 1.03h.44v2h-.44A1.7 1.7 0 0 0 19.4 15Z"/></svg>
-        Setup
+        Settings
       </button>
       <button class="lab-button" type="button" onclick="toggleDrawer(true)" aria-controls="drawer" aria-haspopup="dialog">
         <span class="live-dot" aria-hidden="true"></span>
@@ -32,6 +32,7 @@
       </button>
     </div>
   </header>
+  <div class="scroll-progress" aria-hidden="true"><span id="scrollProgress"></span></div>
 
   <div class="hosted-notice" id="hostedNotice" hidden>
     <strong>Replay mode</strong>
@@ -53,7 +54,7 @@
       </ol>
     </section>
 
-    <section class="view active" id="view-home" aria-labelledby="homeTitle">
+    <section class="view" id="view-home" aria-labelledby="homeTitle">
       <div class="page-intro">
         <p class="eyebrow">Today</p>
         <h1 id="homeTitle" tabindex="-1">Good morning, Eleanor.</h1>
@@ -61,38 +62,19 @@
       </div>
 
       <div class="home-grid">
-        <article class="action-card" id="needCard">
-          <div class="card-kicker">
-            <span class="status-badge"><span aria-hidden="true"></span> Time to schedule</span>
-            <span id="careInterval">Every 6 months</span>
-          </div>
-          <div class="care-symbol" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><path d="M12 21s-7-4.35-7-11a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 6.65-7 11-7 11Z"/><path d="M8.5 12h2l1-2.2 1.5 4.4 1-2.2h1.5"/></svg>
-          </div>
-          <h2 id="needTitle">Cardiology follow-up</h2>
-          <p id="needBody">Your recurring care plan says it is time to schedule your next visit.</p>
-          <ul class="promise-list" aria-label="What Relage will arrange">
-            <li><span class="check-icon" aria-hidden="true">✓</span><span>An in-network morning appointment</span></li>
-            <li><span class="check-icon" aria-hidden="true">✓</span><span>A ride with room for your walker</span></li>
-          </ul>
-          <button class="primary-button" id="goBtn" type="button" onclick="startCoordinate()">
-            Coordinate my visit
-            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
-          </button>
-          <p class="consent-note">
-            <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-            Relage will hold options. You approve the plan before anything gets booked.
-          </p>
-        </article>
+        <div class="care-card-list" id="needCards" aria-live="polite">
+          <div class="care-card-skeleton" aria-label="Loading care tasks"></div>
+        </div>
 
         <aside class="context-panel" aria-labelledby="preferencesTitle">
-          <p class="eyebrow">Planning around you</p>
-          <h2 id="preferencesTitle">Your preferences are already in the plan.</h2>
+          <p class="eyebrow">Your care plan</p>
+          <h2 id="preferencesTitle">Relage plans around the details you saved.</h2>
           <div class="preference-list" id="preferenceList">
             <div><span class="preference-icon" aria-hidden="true">AM</span><span><strong>Morning visits</strong><small>Your preferred time</small></span></div>
             <div><span class="preference-icon" aria-hidden="true">M</span><span><strong>Medicare</strong><small>In-network providers</small></span></div>
             <div><span class="preference-icon" aria-hidden="true">W</span><span><strong>Walker access</strong><small>Door-to-door transport</small></span></div>
           </div>
+          <div class="upcoming-care" id="upcomingCare"></div>
           <button class="text-button" type="button" onclick="showView('setup')">Review care preferences <span aria-hidden="true">→</span></button>
         </aside>
       </div>
@@ -202,54 +184,89 @@
       </article>
     </section>
 
-    <section class="view" id="view-setup" aria-labelledby="setupTitle">
+    <section class="view active" id="view-setup" aria-labelledby="setupTitle">
       <div class="page-intro setup-intro">
         <button class="back-button" type="button" onclick="showView('home')">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg> Back to today
         </button>
-        <p class="eyebrow">Caregiver setup</p>
-        <h1 id="setupTitle" tabindex="-1">Set up care once. Relage handles the follow-through.</h1>
-        <p>A family member or caregiver can update these details at any time.</p>
+        <p class="eyebrow">Welcome to Relage</p>
+        <h1 id="setupTitle" tabindex="-1">Give Relage the details that make a care plan workable.</h1>
+        <p>A family member can set this up once. Relage uses it to match appointments, rides, and caregiver availability.</p>
       </div>
-      <form class="setup-form" onsubmit="event.preventDefault(); saveProfile();">
-        <fieldset>
-          <legend><span>01</span> About Eleanor</legend>
-          <div class="fgrid">
-            <div><label for="f_first">First name</label><input id="f_first" autocomplete="given-name" value="Eleanor"></div>
-            <div><label for="f_last">Last name</label><input id="f_last" autocomplete="family-name" value="Brooks"></div>
-            <div><label for="f_age">Age</label><input id="f_age" type="number" min="0" inputmode="numeric" value="78"></div>
-            <div><label for="f_town">Home town</label><input id="f_town" autocomplete="address-level2" value="Pine Ridge, Pennsylvania"></div>
-            <div><label for="f_ins">Insurance</label><select id="f_ins"><option>Medicare</option><option>Medicaid</option><option>Commercial</option></select></div>
-            <div><label for="f_pharm">Preferred pharmacy</label><input id="f_pharm" value="Pine Ridge Pharmacy"></div>
-            <div class="full">
-              <span class="field-label">Mobility needs</span>
-              <div class="checkrow">
-                <label><input type="checkbox" id="f_walker" checked><span>Walker</span></label>
-                <label><input type="checkbox" id="f_wheel"><span>Wheelchair</span></label>
-                <label><input type="checkbox" id="f_none"><span>No mobility aid</span></label>
+
+      <div class="demo-profile-callout" data-reveal>
+        <div class="demo-profile-copy">
+          <span class="demo-avatar" aria-hidden="true">EB</span>
+          <div><p class="eyebrow">Hackathon shortcut</p><h2>Load Eleanor’s demo profile</h2><p>Two recurring visits, Medicare, walker access, a rural address, and Sarah as caregiver.</p></div>
+        </div>
+        <button class="secondary-button" type="button" onclick="loadDemoData(true)">Use Eleanor’s profile</button>
+      </div>
+
+      <div class="setup-layout">
+        <nav class="setup-section-nav" aria-label="Profile sections">
+          <span>Profile sections</span>
+          <button class="active" type="button" data-section-link="patient" onclick="scrollToSetup('patient')"><b>01</b> Patient</button>
+          <button type="button" data-section-link="pharmacy" onclick="scrollToSetup('pharmacy')"><b>02</b> Pharmacy</button>
+          <button type="button" data-section-link="caregiver" onclick="scrollToSetup('caregiver')"><b>03</b> Caregiver</button>
+          <button type="button" data-section-link="care" onclick="scrollToSetup('care')"><b>04</b> Recurring care</button>
+        </nav>
+
+        <form class="setup-form" onsubmit="event.preventDefault(); saveProfile();">
+          <fieldset id="setup-patient" data-setup-section="patient" data-reveal>
+            <legend><span>01</span> About the patient</legend>
+            <div class="fgrid">
+              <div><label for="f_first">First name</label><input id="f_first" autocomplete="given-name" placeholder="Eleanor"></div>
+              <div><label for="f_last">Last name</label><input id="f_last" autocomplete="family-name" placeholder="Brooks"></div>
+              <div><label for="f_age">Age</label><input id="f_age" type="number" min="0" inputmode="numeric" placeholder="78"></div>
+              <div><label for="f_ins">Insurance</label><select id="f_ins"><option>Medicare</option><option>Medicaid</option><option>Commercial</option></select></div>
+              <div class="full"><label for="f_street">Street address</label><input id="f_street" autocomplete="street-address" placeholder="412 Laurel Hollow Road"></div>
+              <div><label for="f_town">Town and state</label><input id="f_town" autocomplete="address-level2" placeholder="Pine Ridge, Pennsylvania"></div>
+              <div><label for="f_time">Best appointment time</label><select id="f_time"><option value="weekday mornings">Weekday mornings</option><option value="weekday afternoons">Weekday afternoons</option></select></div>
+              <div class="full">
+                <span class="field-label">Mobility needs</span>
+                <div class="checkrow">
+                  <label><input type="checkbox" id="f_walker"><span>Walker</span></label>
+                  <label><input type="checkbox" id="f_wheel"><span>Wheelchair</span></label>
+                  <label><input type="checkbox" id="f_none"><span>No mobility aid</span></label>
+                </div>
               </div>
             </div>
-            <div><label for="f_time">Best appointment time</label><select id="f_time"><option value="weekday mornings">Weekday mornings</option><option value="weekday afternoons">Weekday afternoons</option></select></div>
+          </fieldset>
+
+          <fieldset id="setup-pharmacy" data-setup-section="pharmacy" data-reveal>
+            <legend><span>02</span> Pharmacy</legend>
+            <div class="fgrid">
+              <div><label for="f_pharm">Pharmacy name</label><input id="f_pharm" placeholder="Pine Ridge Pharmacy"></div>
+              <div><label for="f_pharm_addr">Pharmacy address</label><input id="f_pharm_addr" autocomplete="street-address" placeholder="18 Main Street, Pine Ridge, PA"></div>
+            </div>
+          </fieldset>
+
+          <fieldset id="setup-caregiver" data-setup-section="caregiver" data-reveal>
+            <legend><span>03</span> Caregiver</legend>
+            <div class="fgrid">
+              <div><label for="f_cgname">Caregiver name</label><input id="f_cgname" autocomplete="name" placeholder="Sarah Brooks"></div>
+              <div><label for="f_cgphone">Phone for calls and texts</label><input id="f_cgphone" type="tel" autocomplete="tel" placeholder="+15551234567"></div>
+            </div>
+          </fieldset>
+
+          <fieldset id="setup-care" data-setup-section="care" data-reveal>
+            <legend><span>04</span> Recurring care</legend>
+            <p class="fieldset-help">Add the visits the patient already expects. Relage never decides which medical care someone needs.</p>
+            <div id="rcList" class="recurring-care-list"></div>
+            <button class="add-care-button" type="button" onclick="addRcRow()">
+              <span aria-hidden="true">+</span> Add another recurring visit
+            </button>
+          </fieldset>
+
+          <div class="save-bar">
+            <div><strong>Ready to continue?</strong><span>Relage uses these details for care logistics on this device.</span></div>
+            <button class="primary-button save-button" id="saveBtn" type="submit">Save and open Today</button>
           </div>
-        </fieldset>
+          <div class="notice" id="saveNote" role="status" hidden>Care profile saved. Today now uses these details.</div>
+        </form>
+      </div>
 
-        <fieldset>
-          <legend><span>02</span> Care and support</legend>
-          <div class="fgrid">
-            <div><label for="f_cgname">Caregiver name</label><input id="f_cgname" autocomplete="name" value="Sarah Brooks"></div>
-            <div><label for="f_cgphone">Caregiver phone</label><input id="f_cgphone" type="tel" autocomplete="tel" value="+1-555-0142"></div>
-            <div><label for="f_care">Recurring care</label><input id="f_care" value="cardiology follow-up"></div>
-            <div><label for="f_prov">Usual provider</label><input id="f_prov" value="Regional Heart Center"></div>
-            <div><label for="f_interval">Repeat every</label><div class="input-suffix"><input id="f_interval" type="number" min="1" inputmode="numeric" value="6"><span>months</span></div></div>
-            <div><label for="f_last_visit">Last visit</label><input id="f_last_visit" type="date" value="2026-02-08"></div>
-          </div>
-        </fieldset>
-
-        <button class="primary-button save-button" id="saveBtn" type="submit">Save care profile</button>
-        <div class="notice" id="saveNote" role="status" hidden>Care profile saved. Today’s task now uses these details.</div>
-      </form>
-
-      <article class="natural-note-card">
+      <article class="natural-note-card" data-reveal>
         <div>
           <p class="eyebrow">Tell Relage in your own words</p>
           <h2>Add a preference without hunting through settings.</h2>

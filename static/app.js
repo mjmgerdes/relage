@@ -3,9 +3,9 @@
 let state = null;
 let profile = null;
 let config = null;
-let currentView = 'home';
-let userPinned = false;
-let lastStatus = '';
+let currentView = 'setup';
+let userPinned = true;
+let lastStatus = 'NEEDS_APPOINTMENT';
 let localBubbles = [];
 let drawerReturnFocus = null;
 let toastTimer = null;
@@ -70,6 +70,7 @@ function showView(name, pinned) {
   if (!next) return;
   currentView = name;
   userPinned = pinned;
+  document.getElementById('main').classList.toggle('setup-mode', name === 'setup');
   document.querySelectorAll('.view').forEach(function (view) {
     view.classList.toggle('active', view === next);
   });
@@ -80,7 +81,10 @@ function showView(name, pinned) {
   homeNav.toggleAttribute('aria-current', name === 'home');
   scheduleNav.toggleAttribute('aria-current', name === 'schedule');
   if (name === 'schedule') refreshCalendar();
-  if (name === 'setup') populateProfileForm();
+  if (name === 'setup') {
+    populateProfileForm();
+    requestAnimationFrame(initRevealAnimations);
+  }
   const heading = next.querySelector('h1');
   if (heading) requestAnimationFrame(function () { heading.focus({ preventScroll: true }); });
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -112,17 +116,22 @@ document.addEventListener('keydown', function (event) {
   }
 });
 
-async function startCoordinate() {
-  const button = document.getElementById('goBtn');
+async function startCoordinate(index, button) {
+  if (index === undefined) index = 0;
+  if (!button) button = document.querySelector('[data-coordinate-index="' + index + '"]');
   button.disabled = true;
   button.textContent = 'Starting your care plan...';
   showView('working', false);
   try {
-    const response = await fetch('/coordinate', { method: 'POST' });
+    const response = await fetch('/coordinate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ index: index })
+    });
     if (!response.ok) throw new Error('Could not start coordination');
   } catch (error) {
     button.disabled = false;
-    button.textContent = 'Coordinate my visit';
+    button.innerHTML = 'Coordinate this visit' + ICONS.arrow;
     showView('home', false);
     showToast('Relage could not start. Check the server and try again.');
   }
@@ -150,9 +159,6 @@ async function resetDemo() {
     await fetch('/reset', { method: 'POST' });
     localBubbles = [];
     lastStatus = '';
-    const goButton = document.getElementById('goBtn');
-    goButton.disabled = false;
-    goButton.innerHTML = 'Coordinate my visit' + ICONS.arrow;
     await loadProfile();
     await poll(true);
     showView('home', false);
@@ -249,7 +255,9 @@ function renderWorking() {
     ? 'Waiting for ' + cgFirst() + ' to answer.'
     : 'Arranging your appointment and ride.';
   document.getElementById('workSub').textContent = waiting
-    ? 'Relage asked about the ride. If ' + cgFirst() + ' cannot help, Relage will find an accessible option.'
+    ? ((config && config.voice)
+      ? 'Relage is calling ' + cgFirst() + '. If the call reaches voicemail, Relage will try again.'
+      : 'Relage sent the ride details to ' + cgFirst() + '. If she cannot help, Relage will find an accessible option.')
     : 'You can leave this screen open. Relage will stop when it needs your approval.';
   if (!items.length) {
     el.innerHTML = '<div class="empty-progress">Starting the on-device care planner...</div>';
@@ -267,8 +275,8 @@ function planRowsHtml() {
   if (!state || !state.appointment || !state.transport) return '';
   const appointment = state.appointment;
   const transport = state.transport;
-  const care = profile && profile.recurring_care && profile.recurring_care[0]
-    ? profile.recurring_care[0].type : 'appointment';
+  const care = appointment.care_type || (profile && profile.recurring_care && profile.recurring_care[0]
+    ? profile.recurring_care[0].type : 'appointment');
   const rideHome = transport.return_pickup_time === 'after appointment'
     ? 'Ride home after the visit'
     : 'Return pickup at ' + transport.return_pickup_time;
@@ -362,23 +370,62 @@ function titleCase(text) {
   return String(text || '').replace(/\b\w/g, function (letter) { return letter.toUpperCase(); });
 }
 
+function monthsSince(dateString) {
+  if (!dateString) return 999;
+  const date = new Date(dateString + 'T12:00:00');
+  const now = new Date();
+  return (now.getFullYear() - date.getFullYear()) * 12 + now.getMonth() - date.getMonth();
+}
+
+function nextDueDate(care) {
+  const date = new Date((care.last_visit || '2026-01-01') + 'T12:00:00');
+  date.setMonth(date.getMonth() + (care.interval_months || 6));
+  return date;
+}
+
+function careActionCard(care, index) {
+  const address = care.address ? '<br><small>' + esc(care.address) + '</small>' : '';
+  const mobility = profile.patient.mobility_needs && profile.patient.mobility_needs.length
+    ? 'A ride that supports your ' + esc(profile.patient.mobility_needs[0])
+    : 'A door-to-door ride';
+  return '<article class="action-card" data-reveal>' +
+    '<div class="card-kicker"><span class="status-badge"><span aria-hidden="true"></span> Time to schedule</span>' +
+    '<span>Every ' + esc(care.interval_months || 6) + ' months</span></div>' +
+    '<div class="care-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.35-7-11a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 6.65-7 11-7 11Z"/><path d="M8.5 12h2l1-2.2 1.5 4.4 1-2.2h1.5"/></svg></div>' +
+    '<h2>' + esc(titleCase(care.type).replaceAll('-', '‑')) + '</h2>' +
+    '<p>Your saved care schedule says this visit is due. Relage will start with ' + esc(care.provider) + '.' + address + '</p>' +
+    '<ul class="promise-list" aria-label="What Relage will arrange">' +
+      '<li><span class="check-icon" aria-hidden="true">✓</span><span>An in-network ' + esc((profile.patient.preferred_times && profile.patient.preferred_times[0]) || 'appointment') + '</span></li>' +
+      '<li><span class="check-icon" aria-hidden="true">✓</span><span>' + mobility + '</span></li>' +
+    '</ul>' +
+    '<button class="primary-button" type="button" data-coordinate-index="' + index + '" onclick="startCoordinate(' + index + ', this)">Coordinate this visit' + ICONS.arrow + '</button>' +
+    '<p class="consent-note"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Relage will hold options. You approve the full plan before anything gets booked.</p>' +
+  '</article>';
+}
+
 function renderHome() {
   if (!profile || !profile.patient) return;
   const first = patientFirst();
   const hour = new Date().getHours();
   const part = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
   document.getElementById('homeTitle').textContent = 'Good ' + part + ', ' + first + '.';
-  const due = state && state.status === 'NEEDS_APPOINTMENT';
-  document.getElementById('needCard').hidden = !due;
-  document.getElementById('allSet').hidden = due;
-  document.getElementById('homeLead').textContent = due
-    ? 'One care task needs your attention.'
-    : 'Your current care tasks are handled.';
-  if (due && profile.recurring_care && profile.recurring_care[0]) {
-    const care = profile.recurring_care[0];
-    document.getElementById('needTitle').textContent = titleCase(care.type).replaceAll('-', '‑');
-    document.getElementById('careInterval').textContent = 'Every ' + care.interval_months + ' months';
-    document.getElementById('needBody').textContent = 'Your recurring care plan says it is time to schedule the next visit with ' + care.provider + '.';
+  const idle = state && state.status === 'NEEDS_APPOINTMENT';
+  const entries = profile.recurring_care || [];
+  const dueEntries = entries.map(function (care, index) { return { care: care, index: index }; })
+    .filter(function (entry) { return monthsSince(entry.care.last_visit) >= (entry.care.interval_months || 6); });
+  const cards = document.getElementById('needCards');
+  cards.hidden = !idle || !dueEntries.length;
+  document.getElementById('allSet').hidden = idle && dueEntries.length;
+  document.getElementById('homeLead').textContent = !idle
+    ? 'Relage is handling the current care task.'
+    : dueEntries.length === 1
+      ? 'One care task needs your attention.'
+      : dueEntries.length > 1
+        ? dueEntries.length + ' care tasks need your attention.'
+        : 'Your current care tasks are handled.';
+  if (idle && dueEntries.length) {
+    cards.innerHTML = dueEntries.map(function (entry) { return careActionCard(entry.care, entry.index); }).join('');
+    requestAnimationFrame(initRevealAnimations);
   }
   renderPreferences();
 }
@@ -394,6 +441,19 @@ function renderPreferences() {
     '<div><span class="preference-icon" aria-hidden="true">AM</span><span><strong>' + esc(titleCase(time)) + '</strong><small>Your preferred time</small></span></div>' +
     '<div><span class="preference-icon" aria-hidden="true">M</span><span><strong>' + esc(patient.insurance) + '</strong><small>In-network providers</small></span></div>' +
     '<div><span class="preference-icon" aria-hidden="true">W</span><span><strong>' + esc(mobility) + '</strong><small>Transport requirement</small></span></div>';
+  const upcoming = (profile.recurring_care || []).filter(function (care) {
+    return monthsSince(care.last_visit) < (care.interval_months || 6);
+  }).sort(function (a, b) { return nextDueDate(a) - nextDueDate(b); });
+  const upcomingEl = document.getElementById('upcomingCare');
+  if (!upcoming.length) {
+    upcomingEl.innerHTML = '';
+    return;
+  }
+  upcomingEl.innerHTML = '<span>Coming up later</span>' + upcoming.map(function (care) {
+    const date = nextDueDate(care);
+    const month = date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+    return '<div class="upcoming-item"><span class="upcoming-date">' + month + '<br>' + date.getFullYear() + '</span><div><strong>' + esc(titleCase(care.type)) + '</strong><small>' + esc(care.provider) + '</small></div></div>';
+  }).join('');
 }
 
 function populateProfileForm() {
@@ -402,9 +462,11 @@ function populateProfileForm() {
   document.getElementById('f_first').value = names.shift() || '';
   document.getElementById('f_last').value = names.join(' ');
   document.getElementById('f_age').value = profile.patient.age || '';
+  document.getElementById('f_street').value = profile.patient.street_address || '';
   document.getElementById('f_town').value = profile.patient.home_location || '';
   document.getElementById('f_ins').value = profile.patient.insurance || 'Medicare';
   document.getElementById('f_pharm').value = profile.patient.preferred_pharmacy || '';
+  document.getElementById('f_pharm_addr').value = profile.patient.pharmacy_address || '';
   const mobility = profile.patient.mobility_needs || [];
   document.getElementById('f_walker').checked = mobility.includes('walker');
   document.getElementById('f_wheel').checked = mobility.includes('wheelchair');
@@ -414,41 +476,129 @@ function populateProfileForm() {
     document.getElementById('f_cgname').value = profile.caregiver.name || '';
     document.getElementById('f_cgphone').value = profile.caregiver.phone || '';
   }
-  const care = profile.recurring_care && profile.recurring_care[0];
-  if (care) {
-    document.getElementById('f_care').value = care.type || '';
-    document.getElementById('f_prov').value = care.provider || '';
-    document.getElementById('f_interval').value = care.interval_months || 6;
-    document.getElementById('f_last_visit').value = care.last_visit || '';
+  const list = document.getElementById('rcList');
+  list.innerHTML = '';
+  (profile.recurring_care || []).forEach(addRcRow);
+  if (!list.children.length) addRcRow();
+}
+
+function addRcRow(data) {
+  data = data || {};
+  const row = document.createElement('div');
+  row.className = 'rc-entry';
+  const index = document.querySelectorAll('.rc-entry').length + 1;
+  row.innerHTML = '<div class="rc-entry-head"><strong>Recurring visit ' + index + '</strong>' +
+    '<button class="remove-care-button" type="button" onclick="removeRcRow(this)" aria-label="Remove recurring visit">' +
+      '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>' +
+    '<div class="fgrid">' +
+      '<div><label>Type of care</label><input class="rc-type" placeholder="Cardiology follow-up" value="' + esc(data.type || '') + '"></div>' +
+      '<div><label>Provider</label><input class="rc-provider" placeholder="Regional Heart Center" value="' + esc(data.provider || '') + '"></div>' +
+      '<div class="full"><label>Provider address</label><input class="rc-address" placeholder="2200 Medical Center Drive, Millbrook, PA" value="' + esc(data.address || '') + '"></div>' +
+      '<div><label>Repeat every</label><div class="input-suffix"><input class="rc-interval" type="number" min="1" inputmode="numeric" value="' + esc(data.interval_months || 6) + '"><span>months</span></div></div>' +
+      '<div><label>Last visit</label><input class="rc-last" type="date" value="' + esc(data.last_visit || '') + '"></div>' +
+    '</div>';
+  document.getElementById('rcList').appendChild(row);
+}
+
+function removeRcRow(button) {
+  const rows = document.querySelectorAll('.rc-entry');
+  if (rows.length === 1) {
+    showToast('Keep at least one recurring visit, or clear its fields.');
+    return;
   }
+  button.closest('.rc-entry').remove();
+  document.querySelectorAll('.rc-entry-head strong').forEach(function (label, index) {
+    label.textContent = 'Recurring visit ' + (index + 1);
+  });
+}
+
+function collectRecurringCare() {
+  return Array.from(document.querySelectorAll('.rc-entry')).map(function (row) {
+    return {
+      type: row.querySelector('.rc-type').value.trim(),
+      provider: row.querySelector('.rc-provider').value.trim(),
+      address: row.querySelector('.rc-address').value.trim(),
+      interval_months: parseInt(row.querySelector('.rc-interval').value, 10) || 6,
+      last_visit: row.querySelector('.rc-last').value,
+      source: 'caregiver-entered recurring plan'
+    };
+  }).filter(function (care) { return care.type && care.provider; });
+}
+
+function loadDemoData(shouldScroll) {
+  const set = function (id, value) { document.getElementById(id).value = value; };
+  set('f_first', 'Eleanor');
+  set('f_last', 'Brooks');
+  set('f_age', 78);
+  set('f_street', '412 Laurel Hollow Road');
+  set('f_town', 'Pine Ridge, Pennsylvania');
+  set('f_ins', 'Medicare');
+  set('f_pharm', 'Pine Ridge Pharmacy');
+  set('f_pharm_addr', '18 Main Street, Pine Ridge, PA');
+  set('f_time', 'weekday mornings');
+  set('f_cgname', 'Sarah Brooks');
+  set('f_cgphone', '+19736341419');
+  document.getElementById('f_walker').checked = true;
+  document.getElementById('f_wheel').checked = false;
+  document.getElementById('f_none').checked = false;
+  document.getElementById('rcList').innerHTML = '';
+  addRcRow({
+    type: 'cardiology follow-up',
+    provider: 'Regional Heart Center',
+    address: '2200 Medical Center Drive, Millbrook, PA',
+    interval_months: 6,
+    last_visit: '2026-02-08'
+  });
+  addRcRow({
+    type: 'eye exam',
+    provider: 'Millbrook Vision Care',
+    address: '45 Commerce Street, Millbrook, PA',
+    interval_months: 12,
+    last_visit: '2026-03-10'
+  });
+  showToast('Eleanor’s profile is loaded. Review it, then save.');
+  if (shouldScroll) setTimeout(function () { scrollToSetup('patient'); }, 120);
+}
+
+function scrollToSetup(section) {
+  const target = document.getElementById('setup-' + section);
+  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function saveProfile() {
+  const firstName = val('f_first').trim();
+  const recurringCare = collectRecurringCare();
+  if (!firstName) {
+    showToast('Add the patient’s first name before saving.');
+    document.getElementById('f_first').focus();
+    return;
+  }
+  if (!recurringCare.length) {
+    showToast('Add one recurring visit with a care type and provider.');
+    scrollToSetup('care');
+    return;
+  }
   const mobility = [];
   if (document.getElementById('f_walker').checked) mobility.push('walker');
   if (document.getElementById('f_wheel').checked) mobility.push('wheelchair');
   const body = {
     patient: {
-      name: (val('f_first') + ' ' + val('f_last')).trim(),
+      name: (firstName + ' ' + val('f_last')).trim(),
       age: parseInt(val('f_age'), 10) || 0,
+      street_address: val('f_street'),
       home_location: val('f_town'),
       insurance: val('f_ins'),
       mobility_needs: mobility,
       preferred_times: [val('f_time')],
-      preferred_pharmacy: val('f_pharm')
+      preferred_pharmacy: val('f_pharm'),
+      pharmacy_address: val('f_pharm_addr')
     },
     caregiver: {
       name: val('f_cgname'),
       relationship: (profile && profile.caregiver && profile.caregiver.relationship) || 'caregiver',
       phone: val('f_cgphone')
     },
-    recurring_care: [{
-      type: val('f_care'),
-      provider: val('f_prov'),
-      interval_months: parseInt(val('f_interval'), 10) || 6,
-      last_visit: val('f_last_visit'),
-      source: 'caregiver-entered recurring plan'
-    }]
+    recurring_care: recurringCare
   };
   const button = document.getElementById('saveBtn');
   button.disabled = true;
@@ -463,15 +613,19 @@ async function saveProfile() {
     profile = await response.json();
     localBubbles = [];
     lastStatus = '';
+    showToast('Care profile saved. Opening Today…');
     document.getElementById('saveNote').hidden = false;
     renderHome();
     renderDemoIdentity();
-    setTimeout(function () { document.getElementById('saveNote').hidden = true; }, 4200);
+    setTimeout(function () {
+      document.getElementById('saveNote').hidden = true;
+      showView('home', false);
+    }, 650);
   } catch (error) {
     showToast('Relage could not save the profile.');
   } finally {
     button.disabled = false;
-    button.textContent = 'Save care profile';
+    button.textContent = 'Save and open Today';
   }
 }
 
@@ -545,6 +699,58 @@ function renderDemoIdentity() {
   document.getElementById('caregiverInitial').textContent = first.charAt(0).toUpperCase();
 }
 
+let revealObserver = null;
+let setupSpy = null;
+
+function initRevealAnimations() {
+  const items = document.querySelectorAll('[data-reveal]:not(.revealed)');
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    items.forEach(function (item) { item.classList.add('revealed'); });
+    return;
+  }
+  if (!revealObserver) {
+    revealObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry, index) {
+        if (!entry.isIntersecting) return;
+        entry.target.style.transitionDelay = Math.min(index * 45, 135) + 'ms';
+        entry.target.classList.add('revealed');
+        revealObserver.unobserve(entry.target);
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -30px' });
+  }
+  items.forEach(function (item) { revealObserver.observe(item); });
+}
+
+function initSetupScrollSpy() {
+  if (setupSpy) setupSpy.disconnect();
+  setupSpy = new IntersectionObserver(function (entries) {
+    const visible = entries.filter(function (entry) { return entry.isIntersecting; })
+      .sort(function (a, b) { return b.intersectionRatio - a.intersectionRatio; })[0];
+    if (!visible) return;
+    const section = visible.target.getAttribute('data-setup-section');
+    document.querySelectorAll('[data-section-link]').forEach(function (button) {
+      button.classList.toggle('active', button.getAttribute('data-section-link') === section);
+    });
+  }, { rootMargin: '-18% 0px -62%', threshold: [0, .2, .5] });
+  document.querySelectorAll('[data-setup-section]').forEach(function (section) { setupSpy.observe(section); });
+}
+
+let scrollTicking = false;
+function updateScrollEffects() {
+  const root = document.documentElement;
+  const max = Math.max(root.scrollHeight - window.innerHeight, 1);
+  const progress = Math.min(window.scrollY / max, 1);
+  document.getElementById('scrollProgress').style.transform = 'scaleX(' + progress + ')';
+  document.body.classList.toggle('page-scrolled', window.scrollY > 36);
+  scrollTicking = false;
+}
+
+window.addEventListener('scroll', function () {
+  if (scrollTicking) return;
+  scrollTicking = true;
+  requestAnimationFrame(updateScrollEffects);
+}, { passive: true });
+
 async function poll(immediate) {
   try {
     const response = await fetch('/state');
@@ -597,7 +803,7 @@ async function loadConfig() {
     const response = await fetch('/config');
     config = await response.json();
     const status = document.getElementById('twStatus');
-    if (config.voice) status.textContent = 'Live voice';
+    if (config.voice) status.textContent = 'Voice primary';
     else if (config.twilio) status.textContent = 'Live SMS';
     else status.textContent = 'Simulator';
   } catch (error) {
@@ -611,6 +817,10 @@ async function boot() {
   } catch (error) {
     showToast('Relage is waiting for the server.');
   }
+  showView('setup', true);
+  initSetupScrollSpy();
+  initRevealAnimations();
+  updateScrollEffects();
   poll(false);
 }
 
