@@ -157,22 +157,32 @@ async def onboarding_note(request: Request):
 
 
 @app.post("/coordinate")
-def coordinate():
+async def coordinate(request: Request):
     """Run the agent loop from NEEDS_APPOINTMENT to CAREGIVER_CONTACTED.
-    Runs synchronously in a worker thread; the UI polls /state and renders
-    the activity feed as it grows."""
+    Accepts {"index": n} to pick which recurring-care entry to coordinate.
+    Runs in a worker thread; the UI polls /state for the activity feed."""
+    idx = 0
+    try:
+        body = await request.json()
+        idx = int(body.get("index", 0))
+    except Exception:
+        pass
+    if not (0 <= idx < len(PROFILE["recurring_care"])):
+        idx = 0
     with LOCK:
         if STATE["busy"] or STATE["status"] != "NEEDS_APPOINTMENT":
             return JSONResponse({"error": "not in a coordinatable state"}, 409)
         STATE["busy"] = True
-    threading.Thread(target=_coordinate_worker, daemon=True).start()
+    threading.Thread(target=_coordinate_worker, args=(idx,),
+                     daemon=True).start()
     return {"started": True}
 
 
-def _coordinate_worker():
+def _coordinate_worker(idx: int = 0):
     try:
         patient = PROFILE["patient"]
-        care = PROFILE["recurring_care"][0]
+        care = PROFILE["recurring_care"][idx]
+        STATE["care_index"] = idx
 
         # -- Gemma use #2: plan the next action within state-machine rails
         plan = _plan_or_default(
@@ -199,6 +209,7 @@ def _coordinate_worker():
             friendly=f"They have an opening {slot['day']} morning at "
                      f"{slot['time']}.")
 
+        slot["care_type"] = care["type"]
         STATE["appointment"] = tools.hold_appointment(slot)
         STATE["status"] = "APPOINTMENT_HELD"
         log("state", "Appointment tentatively held — nothing is booked until "
@@ -370,7 +381,7 @@ def confirm_plan():
             "kind": "transport", "status": "reserved"})
     tools.create_calendar_event(cal, {
         "date": slot["date"], "time": slot["time"],
-        "title": f"{PROFILE['recurring_care'][0]['type'].title()} — "
+        "title": f"{slot.get('care_type', 'appointment').title()} — "
                  f"{slot['provider']}",
         "kind": "appointment", "status": "confirmed"})
     if t.get("return_pickup_time") and "after" not in t["return_pickup_time"]:
@@ -384,7 +395,8 @@ def confirm_plan():
         "kind": "future", "status": "scheduled"})
 
     first = PROFILE["patient"]["name"].split()[0]
-    care_type = PROFILE["recurring_care"][0]["type"]
+    care_type = slot.get("care_type",
+                         PROFILE["recurring_care"][0]["type"])
     tools.send_sms(PROFILE["patient"]["name"], "(this device)",
                    f"Your {care_type} appointment is confirmed for {slot['day']} "
                    f"at {slot['time']}. "
@@ -423,7 +435,7 @@ def _call_texts() -> dict:
     slot = STATE["appointment"] or {}
     cg = PROFILE["caregiver"]["name"].split()[0]
     first = PROFILE["patient"]["name"].split()[0]
-    care = PROFILE["recurring_care"][0]["type"]
+    care = slot.get("care_type", PROFILE["recurring_care"][0]["type"])
     return {
         "ask": (f"Hello {cg}, this is Rel Age calling on behalf of {first}. "
                 f"She has a {care} appointment available {slot.get('day', '')} "

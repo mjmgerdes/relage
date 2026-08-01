@@ -2,24 +2,35 @@
   "patient": {
     "name": "Eleanor Brooks",
     "age": 78,
+    "street_address": "412 Laurel Hollow Road",
     "home_location": "Pine Ridge, Pennsylvania",
     "insurance": "Medicare",
     "mobility_needs": ["walker"],
     "preferred_times": ["weekday mornings"],
-    "preferred_pharmacy": "Pine Ridge Pharmacy"
+    "preferred_pharmacy": "Pine Ridge Pharmacy",
+    "pharmacy_address": "18 Main Street, Pine Ridge, PA"
   },
   "caregiver": {
     "name": "Sarah Brooks",
     "relationship": "daughter",
-    "phone": "+1-555-0142",
+    "phone": "+19736341419",
     "notes": "Often unavailable during weekdays"
   },
   "recurring_care": [
     {
       "type": "cardiology follow-up",
       "provider": "Regional Heart Center",
+      "address": "2200 Medical Center Drive, Millbrook, PA",
       "interval_months": 6,
       "last_visit": "2026-02-08",
+      "source": "patient-entered recurring plan"
+    },
+    {
+      "type": "eye exam",
+      "provider": "Millbrook Vision Care",
+      "address": "45 Commerce Street, Millbrook, PA",
+      "interval_months": 12,
+      "last_visit": "2026-03-10",
       "source": "patient-entered recurring plan"
     }
   ],
