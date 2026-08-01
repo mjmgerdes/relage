@@ -1,5 +1,6 @@
 .env
 .venv/
+static/tts/
 __pycache__/
 *.pyc
 .DS_Store

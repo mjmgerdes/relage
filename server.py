@@ -382,25 +382,111 @@ import os as _os
 from fastapi.responses import Response as _Response
 
 
+MAX_CALL_ATTEMPTS = 3
+REDIAL_DELAY_S = 8
+
+
+def _call_texts() -> dict:
+    """The three utterances a call can need, built from current state."""
+    slot = STATE["appointment"] or {}
+    cg = PROFILE["caregiver"]["name"].split()[0]
+    first = PROFILE["patient"]["name"].split()[0]
+    care = PROFILE["recurring_care"][0]["type"]
+    return {
+        "ask": (f"Hello {cg}, this is Rel Age calling on behalf of {first}. "
+                f"She has a {care} appointment available {slot.get('day', '')} "
+                f"at {slot.get('time', '')} at {slot.get('provider', '')}. "
+                "Would you be able to drive her? Take your time — just say "
+                "something like: yes I can, or, no I have work that day."),
+        "retry": ("Sorry, we did not catch that. Would you be able to drive "
+                  "her? Just say yes or no, with any details."),
+        "thanks": ("Thank you. Rel Age will take it from here and keep "
+                   "everyone updated. Goodbye."),
+        "giveup": "No problem — Rel Age will follow up by text. Goodbye.",
+    }
+
+
+def _pregenerate_tts():
+    """Generate ElevenLabs audio for all call utterances before dialing so
+    the answered call plays instantly. No-op without an API key."""
+    STATE["tts"] = {}
+    for key, text in _call_texts().items():
+        name = tools.eleven_tts(text)
+        if name:
+            STATE["tts"][key] = name
+    if STATE["tts"]:
+        log("call", f"ElevenLabs TTS ready ({len(STATE['tts'])} clips)")
+
+
+def _place_caregiver_call() -> dict:
+    base = _os.environ["BASE_URL"]
+    to = _os.environ.get("CAREGIVER_PHONE") or PROFILE["caregiver"]["phone"]
+    call = tools.place_call(to, f"{base}/voice-twiml",
+                            status_callback=f"{base}/call-status")
+    STATE["call_attempts"] = STATE.get("call_attempts", 0) + 1
+    cg = PROFILE["caregiver"]["name"].split()[0]
+    log("call", f"Placed voice call to {to} "
+                f"(attempt {STATE['call_attempts']}, sid {call.get('sid', '?')})",
+        friendly=f"Calling {cg}'s phone to ask about the ride…")
+    return call
+
+
 @app.post("/call-caregiver")
 def call_caregiver():
     """Place a real call to the caregiver asking about the ride."""
     if STATE["status"] != "CAREGIVER_CONTACTED":
         return JSONResponse({"error": "no outstanding caregiver request"}, 409)
-    base = _os.environ.get("BASE_URL")
-    to = _os.environ.get("CAREGIVER_PHONE") or PROFILE["caregiver"]["phone"]
-    if not base or not tools.twilio_configured():
+    if not _os.environ.get("BASE_URL") or not tools.twilio_configured():
         return JSONResponse({"error": "voice not configured "
                              "(need BASE_URL + TWILIO_* in .env)"}, 409)
-    cg = PROFILE["caregiver"]["name"].split()[0]
     try:
-        call = tools.place_call(to, f"{base}/voice-twiml")
-        log("call", f"Placed voice call to {to} (sid {call.get('sid', '?')})",
-            friendly=f"Calling {cg}'s phone to ask about the ride…")
+        STATE["call_attempts"] = 0
+        _pregenerate_tts()
+        _place_caregiver_call()
         return {"placed": True}
     except Exception as e:
         log("error", f"Call failed: {e}")
         return JSONResponse({"error": str(e)}, 500)
+
+
+@app.post("/call-status")
+async def call_status(request: Request):
+    """Twilio's final-status callback. If the caregiver didn't pick up,
+    automatically redial after a short pause (up to MAX_CALL_ATTEMPTS)."""
+    form = await request.form()
+    status = form.get("CallStatus", "")
+    if (status in ("no-answer", "busy", "failed", "canceled")
+            and STATE["status"] == "CAREGIVER_CONTACTED"
+            and STATE.get("call_attempts", 0) < MAX_CALL_ATTEMPTS):
+        cg = PROFILE["caregiver"]["name"].split()[0]
+        log("call", f"Call {status} — redialing in {REDIAL_DELAY_S}s",
+            friendly=f"{cg} didn't pick up. Trying again in a moment…")
+
+        def _redial():
+            import time
+            time.sleep(REDIAL_DELAY_S)
+            if STATE["status"] == "CAREGIVER_CONTACTED":
+                try:
+                    _place_caregiver_call()
+                except Exception as e:
+                    log("error", f"Redial failed: {e}")
+
+        threading.Thread(target=_redial, daemon=True).start()
+    elif (status in ("no-answer", "busy", "failed")
+          and STATE["status"] == "CAREGIVER_CONTACTED"):
+        log("call", "No answer after max attempts — SMS remains the ask.",
+            friendly="Couldn't reach them by phone — the text is still out.")
+    return {"ok": True}
+
+
+def _speak(key: str) -> str:
+    """TwiML fragment: ElevenLabs clip when pre-generated, else Polly Neural."""
+    name = (STATE.get("tts") or {}).get(key)
+    if name:
+        base = _os.environ.get("BASE_URL", "")
+        return f"<Play>{base}/static/tts/{name}</Play>"
+    text = _call_texts()[key]
+    return f'<Say voice="Polly.Joanna-Neural">{text}</Say>'
 
 
 @app.post("/voice-twiml")
@@ -408,28 +494,15 @@ def voice_twiml(retry: int = 0):
     """TwiML Twilio fetches when the caregiver answers: ask the question,
     gather the spoken reply. If nothing is heard, re-prompt once (retry=1)
     before giving up, so a slow pickup doesn't end the call."""
-    slot = STATE["appointment"] or {}
-    cg = PROFILE["caregiver"]["name"].split()[0]
-    first = PROFILE["patient"]["name"].split()[0]
-    care = PROFILE["recurring_care"][0]["type"]
     if retry:
-        intro = "Sorry, we did not catch that. "
-    else:
-        intro = (f"Hello {cg}, this is Rel Age calling on behalf of {first}. "
-                 f"She has a {care} appointment available {slot.get('day', '')} "
-                 f"at {slot.get('time', '')} at {slot.get('provider', '')}. ")
-    prompt = ("Would you be able to drive her? Take your time — just say "
-              "something like: yes I can, or, no I have work that day.")
-    if retry:
-        fallback = ('<Say voice="Polly.Joanna">No problem — Rel Age will '
-                    'follow up by text. Goodbye.</Say>')
+        fallback = _speak("giveup")
     else:
         fallback = '<Redirect method="POST">/voice-twiml?retry=1</Redirect>'
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Gather input="speech" action="/voice-result" method="POST"
           timeout="8" speechTimeout="2">
-    <Say voice="Polly.Joanna">{intro}{prompt}</Say>
+    {_speak("retry" if retry else "ask")}
   </Gather>
   {fallback}
 </Response>"""
@@ -449,12 +522,11 @@ async def voice_result(request: Request):
             "body": f"🎙 {cg} said (on the call): “{text}”", "via": "voice"})
         threading.Thread(target=_caregiver_worker, args=(text,),
                          daemon=True).start()
-        reply = ("Thank you. Rel Age will take it from here and keep "
-                 "everyone updated. Goodbye.")
+        speak = _speak("thanks")
     else:
-        reply = "Thank you. Goodbye."
+        speak = '<Say voice="Polly.Joanna-Neural">Thank you. Goodbye.</Say>'
     xml = (f'<?xml version="1.0" encoding="UTF-8"?><Response>'
-           f'<Say voice="Polly.Joanna">{reply}</Say></Response>')
+           f'{speak}</Response>')
     return _Response(content=xml, media_type="text/xml")
 
 
@@ -465,6 +537,7 @@ def reset():
         "status": "NEEDS_APPOINTMENT", "activity": [], "appointment": None,
         "transport_options": [], "transport": None, "caregiver_reply": None,
         "plan_explanation": "", "sms_outbox": [], "busy": False,
+        "tts": {}, "call_attempts": 0,
         "calendar": [{"date": "2026-02-08", "time": "10:00 AM",
                       "title": "Cardiology follow-up — Regional Heart Center",
                       "kind": "past", "status": "completed"}],
