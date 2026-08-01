@@ -4,12 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Relage</title>
+<link rel="icon" type="image/png" href="static/favicon.png">
 <style>
   :root {
-    --bg: #faf8f3; --card: #ffffff; --ink: #26262e; --muted: #5f5f6a;
-    --accent: #1f6f5c; --accent-dark: #175346; --accent-soft: #e3f0ec;
-    --warn: #b4552d; --warn-soft: #f9ece4; --line: #e3dfd4;
-    --blue: #33556e; --blue-soft: #e8eff5; --purple: #5b3aa6; --purple-soft: #f1ebfb;
+    /* Relage brand: navy + sky from the logo */
+    --bg: #f5f8fc; --card: #ffffff; --ink: #1d2433; --muted: #5c6575;
+    --accent: #1b3672; --accent-dark: #12264f; --accent-soft: #e4edf8;
+    --sky: #92c4ea; --warn: #b4552d; --warn-soft: #f9ece4; --line: #dde5f0;
+    --blue: #33556e; --blue-soft: #e8f1fa; --purple: #5b3aa6; --purple-soft: #f1ebfb;
   }
   * { box-sizing: border-box; margin: 0; }
   body {
@@ -131,9 +133,8 @@
 <body>
 
 <header>
-  <div class="logo">RR</div>
   <div>
-    <h1>Relage</h1>
+    <img src="static/logo-lockup.png" alt="Relage" style="height:48px; display:block;">
     <div class="sub" id="statusHuman">Here to help you get to your care</div>
   </div>
   <div class="hbtns">
@@ -181,6 +182,10 @@
       <button class="bigbtn" onclick="confirmPlan()">✓ Yes, book everything</button>
       <button class="bigbtn gray" onclick="showView('home')">Not now</button>
     </div>
+    <div class="card">
+      <h2 style="font-size:20px">How Relage put this together</h2>
+      <div class="steps" id="stepsReview" style="font-size:18px"></div>
+    </div>
   </section>
 
   <!-- ============ DONE ============ -->
@@ -191,6 +196,10 @@
       <div class="notice good" id="doneNote"></div>
     </div>
     <button class="bigbtn gray" onclick="showView('schedule')">See my full schedule</button>
+    <div class="card">
+      <h2 style="font-size:20px">How Relage put this together</h2>
+      <div class="steps" id="stepsDone" style="font-size:18px"></div>
+    </div>
   </section>
 
   <!-- ============ SCHEDULE ============ -->
@@ -391,7 +400,14 @@ function planRowsHtml() {
       <b>We'll remind you</b>
       <div class="det">The day before, and the morning of. ${cgFirst()} gets updates too.</div></div></div>`;
 }
+function stepsRecapHtml() {
+  return (state.activity || []).filter(a => a.friendly).map(a =>
+    `<div class="step"><span class="ico">✅</span><span>${a.friendly}</span></div>`
+  ).join('');
+}
+
 function renderReview() {
+  document.getElementById('stepsReview').innerHTML = stepsRecapHtml();
   document.getElementById('planRows').innerHTML = planRowsHtml();
   if (state.plan_explanation) {
     document.getElementById('whyBox').style.display = 'block';
@@ -402,6 +418,7 @@ function renderDone() {
   const first = (profile?.patient?.name || '').split(' ')[0];
   document.getElementById('doneGreet').textContent = `You're all set, ${first}! 🎉`;
   document.getElementById('doneRows').innerHTML = planRowsHtml();
+  document.getElementById('stepsDone').innerHTML = stepsRecapHtml();
   document.getElementById('doneNote').textContent =
     `We texted you and ${cgFirst()} a confirmation.`;
 }
