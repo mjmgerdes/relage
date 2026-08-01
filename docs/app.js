@@ -121,7 +121,12 @@ async function startCoordinate(index, button) {
   if (!button) button = document.querySelector('[data-coordinate-index="' + index + '"]');
   button.disabled = true;
   button.textContent = 'Starting your care plan...';
-  showView('working', false);
+  // Pin the working view so the next poll tick (which may still see
+  // NEEDS_APPOINTMENT) can't bounce back to home; the first real status
+  // change unpins automatically.
+  resetStepReveal();
+  showView('working', true);
+  renderWorking();
   try {
     const response = await fetch('/coordinate', {
       method: 'POST',
@@ -159,6 +164,7 @@ async function resetDemo() {
     await fetch('/reset', { method: 'POST' });
     localBubbles = [];
     lastStatus = '';
+    resetStepReveal();
     await loadProfile();
     await poll(true);
     showView('home', false);
@@ -258,6 +264,19 @@ function sourceChips(item) {
   return '<span class="source-chips" aria-label="Sources consulted">' + chips + '</span>';
 }
 
+/* Sequential step reveal: backend activity arrives in bursts, but each step
+   should appear one at a time — spinning while "fetching", then checking off
+   as the next lands — so the agent visibly works. */
+let stepsRevealed = 0;
+let stepRevealTimer = null;
+let lastStepsKey = '';
+
+function resetStepReveal() {
+  stepsRevealed = 0;
+  lastStepsKey = '';
+  if (stepRevealTimer) { clearTimeout(stepRevealTimer); stepRevealTimer = null; }
+}
+
 function renderWorking() {
   if (!state) return;
   const items = (state.activity || []).filter(function (item) { return item.friendly; });
@@ -271,16 +290,37 @@ function renderWorking() {
       ? 'Relage is calling ' + cgFirst() + '. If the call reaches voicemail, Relage will try again.'
       : 'Relage sent the ride details to ' + cgFirst() + '. If she cannot help, Relage will find an accessible option.')
     : 'You can leave this screen open. Relage will stop when it needs your approval.';
+
+  if (items.length < stepsRevealed) resetStepReveal();       // demo was reset
+  if (items.length && !stepsRevealed) stepsRevealed = 1;
+  if (items.length > stepsRevealed && !stepRevealTimer) {    // drip the backlog
+    stepRevealTimer = setTimeout(function () {
+      stepRevealTimer = null;
+      stepsRevealed += 1;
+      renderWorking();
+    }, 700);
+  }
+
   if (!items.length) {
-    el.innerHTML = '<div class="empty-progress">Starting the on-device care planner...</div>';
+    if (lastStepsKey !== 'empty') {
+      el.innerHTML = '<div class="empty-progress">Starting the on-device care planner...</div>';
+      lastStepsKey = 'empty';
+    }
     return;
   }
-  el.innerHTML = items.map(function (item, index) {
-    const isLast = index === items.length - 1;
-    const isCurrent = isLast && (state.busy || waiting);
+
+  const visible = items.slice(0, stepsRevealed);
+  const pending = items.length > stepsRevealed;
+  const key = stepsRevealed + ':' + items.length + ':' + state.busy + ':' + waiting;
+  if (key === lastStepsKey) return;                          // no DOM churn
+  lastStepsKey = key;
+  el.innerHTML = visible.map(function (item, index) {
+    const isLast = index === visible.length - 1;
+    const isCurrent = isLast && (pending || state.busy || waiting);
     const marker = isCurrent ? '<span class="spinner"></span>' : '✓';
     return '<div class="step' + (isCurrent ? ' current' : '') + '"><span class="step-icon">' + marker + '</span><span>' + esc(item.friendly) + sourceChips(item) + '</span></div>';
   }).join('');
+  el.scrollTop = el.scrollHeight;
 }
 
 function planRowsHtml() {
@@ -436,8 +476,16 @@ function renderHome() {
         ? dueEntries.length + ' care tasks need your attention.'
         : 'Your current care tasks are handled.';
   if (idle && dueEntries.length) {
-    cards.innerHTML = dueEntries.map(function (entry) { return careActionCard(entry.care, entry.index); }).join('');
-    requestAnimationFrame(initRevealAnimations);
+    // Only rewrite when content actually changed — a rewrite every poll tick
+    // restarts the reveal animation and makes the cards flicker.
+    const html = dueEntries.map(function (entry) { return careActionCard(entry.care, entry.index); }).join('');
+    if (cards.dataset.rendered !== html) {
+      cards.innerHTML = html;
+      cards.dataset.rendered = html;
+      requestAnimationFrame(initRevealAnimations);
+    }
+  } else {
+    cards.dataset.rendered = '';
   }
   renderPreferences();
 }
