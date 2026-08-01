@@ -85,10 +85,9 @@ function showView(name, pinned) {
     populateProfileForm();
     requestAnimationFrame(initRevealAnimations);
   }
-  requestAnimationFrame(updateScrollStages);
   const heading = next.querySelector('h1');
   if (heading) requestAnimationFrame(function () { heading.focus({ preventScroll: true }); });
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
 function toggleDrawer(forceOpen) {
@@ -867,48 +866,14 @@ function initSetupScrollSpy() {
 }
 
 let scrollTicking = false;
-let pointerGlowReady = false;
 
-function initPointerGlow() {
-  if (pointerGlowReady || window.matchMedia('(pointer: coarse)').matches) return;
-  pointerGlowReady = true;
-  document.addEventListener('pointermove', function (event) {
-    document.querySelectorAll('[data-glow]').forEach(function (element) {
-      const rect = element.getBoundingClientRect();
-      element.style.setProperty('--glow-x', (event.clientX - rect.left) + 'px');
-      element.style.setProperty('--glow-y', (event.clientY - rect.top) + 'px');
-    });
-  }, { passive: true });
-}
-
-function updateScrollStages() {
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  document.querySelectorAll('[data-scroll-stage]').forEach(function (element) {
-    if (reduced || element.offsetParent === null) {
-      element.style.transform = '';
-      element.style.opacity = '';
-      return;
-    }
-    const rect = element.getBoundingClientRect();
-    const start = window.innerHeight * .68;
-    const end = window.innerHeight * .12;
-    const progress = Math.max(0, Math.min(1, (start - rect.top) / Math.max(start - end, 1)));
-    const rotate = (1 - progress) * 6;
-    const scale = .965 + (progress * .035);
-    const translate = (1 - progress) * 26;
-    element.style.transform = 'perspective(1000px) translateY(' + translate.toFixed(2) + 'px) rotateX(' + rotate.toFixed(2) + 'deg) scale(' + scale.toFixed(4) + ')';
-    element.style.opacity = (.78 + (progress * .22)).toFixed(3);
-  });
-}
+// Scroll-driven card transforms, pointer glow, and the progress bar made
+// scrolling feel laggy and gimmicky — content now sits still while you
+// scroll. Only the setup section spy remains.
+function initPointerGlow() {}
 
 function updateScrollEffects() {
-  const root = document.documentElement;
-  const max = Math.max(root.scrollHeight - window.innerHeight, 1);
-  const progress = Math.min(window.scrollY / max, 1);
-  document.getElementById('scrollProgress').style.transform = 'scaleX(' + progress + ')';
-  document.body.classList.toggle('page-scrolled', window.scrollY > 36);
   updateSetupScrollSpy();
-  updateScrollStages();
   scrollTicking = false;
 }
 
