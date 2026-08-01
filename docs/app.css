@@ -635,7 +635,8 @@ footer { letter-spacing: .1em; }
 
 @media (min-width: 1200px) {
   .bottom-nav { left: 8px; top: 50%; bottom: auto; flex-direction: column; transform: translateY(-50%); }
-  .bottom-nav button { min-width: 94px; padding-inline: 7px; }
+  .bottom-nav button { min-width: 88px; gap: 6px; padding-inline: 4px; font-size: 13px; }
+  .bottom-nav svg { width: 18px; height: 18px; }
 }
 
 @media (max-width: 650px) {
