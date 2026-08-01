@@ -60,6 +60,16 @@ ALLOWED = {
 }
 
 
+# Warm both Gemma tiers at startup so the first live call has no cold-start.
+gemma.warm_up()
+
+
+def gmeta() -> str:
+    """Model + latency tag for the technical feed, e.g. ' [gemma3:4b 1.2s]'."""
+    m = gemma.last_meta
+    return f" [{m.get('model', '?')} {m.get('ms', 0) / 1000:.1f}s]" if m else ""
+
+
 def log(kind: str, text: str, detail: dict | None = None,
         friendly: str | None = None):
     """Record an activity item. `text` is the technical line (demo drawer);
@@ -141,8 +151,8 @@ async def onboarding_note(request: Request):
     preferences the patient can review."""
     body = await request.json()
     result = gemma.interpret_onboarding(body.get("text", ""))
-    log("gemma", f"Interpreted onboarding note: {result.get('summary', '')}",
-        result)
+    log("gemma", f"Interpreted onboarding note: "
+                 f"{result.get('summary', '')}{gmeta()}", result)
     return result
 
 
@@ -170,7 +180,7 @@ def _coordinate_worker():
                      "preferred_provider": care["provider"],
                      "location": patient["home_location"]},
             default="search_providers")
-        log("gemma", f"Plan: {plan['tool']} — {plan['reason']}", plan,
+        log("gemma", f"Plan: {plan['tool']} — {plan['reason']}{gmeta()}", plan,
             friendly=f"Finding a doctor who takes {patient['insurance']}…")
 
         specialty = ("cardiology" if "cardio" in care["type"].lower()
@@ -269,8 +279,8 @@ def _caregiver_worker(text: str):
             text, f"Can you drive {first} to her {slot['time']} appointment "
                   f"on {slot['day']}?")
         STATE["caregiver_reply"] = {"text": text, **parsed}
-        log("gemma", f"Interpreted {cg}'s reply: {parsed['summary']}", parsed,
-            friendly=f"{cg} answered: {parsed['summary']}")
+        log("gemma", f"Interpreted {cg}'s reply: {parsed['summary']}{gmeta()}",
+            parsed, friendly=f"{cg} answered: {parsed['summary']}")
 
         if parsed.get("can_drive") and not parsed.get("partial"):
             STATE["transport"] = {"name": f"{PROFILE['caregiver']['name']} "
@@ -301,7 +311,8 @@ def _caregiver_worker(text: str):
             STATE["transport"] = options[pick["choice_index"]]
             STATE["status"] = "TRANSPORT_FOUND"
             log("gemma", f"Selected fallback: "
-                         f"{STATE['transport']['name']} — {pick['reason']}",
+                         f"{STATE['transport']['name']} — "
+                         f"{pick['reason']}{gmeta()}",
                 pick,
                 friendly=f"Found one: {STATE['transport']['name']}.")
 
@@ -310,8 +321,9 @@ def _caregiver_worker(text: str):
             {"appointment": STATE["appointment"],
              "transport": STATE["transport"]}, PROFILE)
         STATE["plan_explanation"] = expl.get("explanation", "")
+        log("gemma", f"Wrote plan explanation{gmeta()}")
         STATE["status"] = "AWAITING_USER_CONFIRMATION"
-        log("state", "Complete plan ready for Eleanor's review.")
+        log("state", "Complete plan ready for review.")
     except Exception as e:
         log("error", f"Reply handling error: {e}")
     finally:
