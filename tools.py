@@ -171,7 +171,8 @@ def eleven_tts(text: str) -> str | None:
         return None
     import hashlib, urllib.request
     voice = os.environ.get("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")
-    name = hashlib.sha1(f"{voice}:{text}".encode()).hexdigest() + ".mp3"
+    model = os.environ.get("ELEVENLABS_MODEL", "eleven_multilingual_v2")
+    name = hashlib.sha1(f"{voice}:{model}:{text}".encode()).hexdigest() + ".mp3"
     out_dir = Path(__file__).parent / "static" / "tts"
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / name
@@ -179,12 +180,15 @@ def eleven_tts(text: str) -> str | None:
         return name
     body = json.dumps({
         "text": text,
-        "model_id": "eleven_turbo_v2_5",
-        "voice_settings": {"stability": 0.5, "similarity_boost": 0.75},
+        "model_id": model,
+        # Warmer, more expressive delivery; phone audio is the bottleneck,
+        # so feed it the highest-quality source we can.
+        "voice_settings": {"stability": 0.45, "similarity_boost": 0.85,
+                           "style": 0.3, "use_speaker_boost": True},
     }).encode()
     req = urllib.request.Request(
         f"https://api.elevenlabs.io/v1/text-to-speech/{voice}"
-        "?output_format=mp3_22050_32",
+        "?output_format=mp3_44100_128",
         data=body,
         headers={"xi-api-key": key, "Content-Type": "application/json"})
     try:
