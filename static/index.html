@@ -3,130 +3,129 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RuralRelay — Care Coordination</title>
+<title>RuralRelay</title>
 <style>
   :root {
-    --bg: #f6f4ef; --card: #ffffff; --ink: #2b2b33; --muted: #6f6f7a;
-    --accent: #1f6f5c; --accent-soft: #e3f0ec; --warn: #b4552d;
-    --warn-soft: #f9ece4; --line: #e6e2d8; --blue: #33556e; --blue-soft: #e8eff5;
-    --radius: 14px;
+    --bg: #faf8f3; --card: #ffffff; --ink: #26262e; --muted: #5f5f6a;
+    --accent: #1f6f5c; --accent-dark: #175346; --accent-soft: #e3f0ec;
+    --warn: #b4552d; --warn-soft: #f9ece4; --line: #e3dfd4;
+    --blue: #33556e; --blue-soft: #e8eff5; --purple: #5b3aa6; --purple-soft: #f1ebfb;
   }
   * { box-sizing: border-box; margin: 0; }
   body {
     font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg); color: var(--ink); font-size: 17px; line-height: 1.5;
+    background: var(--bg); color: var(--ink);
+    font-size: 22px; line-height: 1.55;
   }
   header {
     display: flex; align-items: center; gap: 14px;
-    padding: 18px 28px; background: var(--card); border-bottom: 1px solid var(--line);
+    padding: 16px 22px; background: var(--card); border-bottom: 1px solid var(--line);
   }
   header .logo {
-    width: 40px; height: 40px; border-radius: 12px; background: var(--accent);
+    width: 46px; height: 46px; border-radius: 13px; background: var(--accent);
     color: #fff; display: flex; align-items: center; justify-content: center;
-    font-weight: 800; font-size: 19px;
+    font-weight: 800; font-size: 21px; flex-shrink: 0;
   }
-  header h1 { font-size: 21px; }
-  header .tag { color: var(--muted); font-size: 14px; }
-  header .status-pill {
-    margin-left: auto; font-size: 13px; font-weight: 700; letter-spacing: .04em;
-    background: var(--blue-soft); color: var(--blue);
-    padding: 6px 14px; border-radius: 999px;
+  header h1 { font-size: 24px; }
+  header .sub { color: var(--muted); font-size: 15px; }
+  .hbtns { margin-left: auto; display: flex; gap: 10px; }
+  .hbtn {
+    font-size: 15px; padding: 9px 14px; border-radius: 10px; cursor: pointer;
+    background: var(--card); border: 1px solid var(--line); color: var(--muted);
   }
-  .layout { display: flex; gap: 22px; padding: 22px 28px; max-width: 1280px; margin: 0 auto; }
-  .main { flex: 1; min-width: 0; }
-  nav { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
-  nav button {
-    font-size: 16px; font-weight: 600; padding: 10px 20px; border: 1px solid var(--line);
-    background: var(--card); color: var(--muted); border-radius: 999px; cursor: pointer;
-  }
-  nav button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-  nav button .dot {
-    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
-    background: var(--warn); margin-left: 7px; vertical-align: middle;
-  }
+  main { max-width: 700px; margin: 0 auto; padding: 26px 20px 120px; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .greeting { font-size: 30px; font-weight: 800; margin-bottom: 4px; }
+  .subgreet { color: var(--muted); font-size: 20px; margin-bottom: 22px; }
   .card {
     background: var(--card); border: 1px solid var(--line);
-    border-radius: var(--radius); padding: 22px; margin-bottom: 16px;
+    border-radius: 18px; padding: 26px; margin-bottom: 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
   }
-  .card h2 { font-size: 19px; margin-bottom: 12px; }
-  .card h3 { font-size: 16px; margin-bottom: 8px; }
-  .kv { display: grid; grid-template-columns: 180px 1fr; row-gap: 8px; }
-  .kv .k { color: var(--muted); }
-  .btn {
-    display: inline-block; font-size: 17px; font-weight: 700; padding: 12px 22px;
-    border-radius: 12px; border: none; cursor: pointer;
-    background: var(--accent); color: #fff;
+  .card h2 { font-size: 26px; margin-bottom: 10px; }
+  .bigbtn {
+    display: block; width: 100%; font-size: 24px; font-weight: 800;
+    padding: 20px; border-radius: 16px; border: none; cursor: pointer;
+    background: var(--accent); color: #fff; margin-top: 18px;
   }
-  .btn.secondary { background: var(--card); color: var(--accent); border: 2px solid var(--accent); }
-  .btn.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
-  .btn:disabled { opacity: .5; cursor: default; }
-  .notice {
-    background: var(--warn-soft); color: var(--warn); border-radius: 10px;
-    padding: 12px 16px; font-size: 15px; margin-bottom: 14px;
+  .bigbtn:active { background: var(--accent-dark); }
+  .bigbtn.gray { background: var(--card); color: var(--muted); border: 2px solid var(--line); font-weight: 600; }
+  .bigbtn:disabled { opacity: .5; }
+  .plain { color: var(--muted); font-size: 19px; }
+  .steps { display: flex; flex-direction: column; gap: 16px; margin-top: 8px; }
+  .step { display: flex; gap: 14px; align-items: flex-start; font-size: 21px; }
+  .step .ico { font-size: 24px; width: 34px; flex-shrink: 0; text-align: center; }
+  .spinner {
+    display: inline-block; width: 22px; height: 22px; border: 3px solid var(--line);
+    border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite;
   }
-  .good { background: var(--accent-soft); color: var(--accent); }
-  .feed { display: flex; flex-direction: column; gap: 10px; }
-  .feed-item {
-    display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px;
-    border: 1px solid var(--line); border-radius: 10px; background: #fcfbf8;
-    font-size: 15px;
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .planrow { display: flex; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--line); align-items: flex-start; }
+  .planrow:last-child { border-bottom: none; }
+  .planrow .ico { font-size: 30px; width: 44px; flex-shrink: 0; text-align: center; }
+  .planrow b { font-size: 22px; }
+  .planrow .det { color: var(--muted); font-size: 19px; }
+  .why {
+    background: var(--purple-soft); border-radius: 14px; padding: 18px 20px;
+    font-size: 20px; margin-top: 16px;
   }
-  .feed-item .chip {
-    flex-shrink: 0; font-size: 11px; font-weight: 800; letter-spacing: .05em;
-    padding: 3px 9px; border-radius: 6px; margin-top: 2px; text-transform: uppercase;
-  }
-  .chip.gemma { background: #ece4f9; color: #5b3aa6; }
-  .chip.tool { background: var(--blue-soft); color: var(--blue); }
-  .chip.state { background: var(--accent-soft); color: var(--accent); }
-  .chip.sms { background: #fdf3d7; color: #8a6d1a; }
-  .chip.adapt { background: #fde4ef; color: #a6336f; }
-  .chip.error { background: var(--warn-soft); color: var(--warn); }
-  .timeline .ev { display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .why .lbl { font-size: 14px; font-weight: 800; color: var(--purple); letter-spacing: .04em; margin-bottom: 6px; }
+  .timeline .ev { display: flex; gap: 18px; padding: 16px 0; border-bottom: 1px solid var(--line); }
   .timeline .ev:last-child { border-bottom: none; }
-  .timeline .date { width: 76px; flex-shrink: 0; font-weight: 800; color: var(--accent); }
+  .timeline .date { width: 86px; flex-shrink: 0; font-weight: 800; color: var(--accent); font-size: 20px; }
   .timeline .past .date { color: var(--muted); }
-  .timeline .meta { color: var(--muted); font-size: 14px; }
-  .privacy { font-size: 14px; color: var(--muted); }
-  .privacy li { margin-left: 20px; }
-  /* --- Sarah's phone simulator --- */
-  .phone {
-    width: 320px; flex-shrink: 0; background: #1c1c22; border-radius: 26px;
-    padding: 16px 14px; color: #eee; align-self: flex-start; position: sticky; top: 22px;
+  .timeline .meta { color: var(--muted); font-size: 17px; }
+  .bottomnav {
+    position: fixed; bottom: 0; left: 0; right: 0; display: flex;
+    background: var(--card); border-top: 1px solid var(--line); z-index: 40;
   }
-  .phone .phead { text-align: center; font-size: 14px; color: #aaa; margin-bottom: 10px; }
-  .phone .msgs { display: flex; flex-direction: column; gap: 8px; min-height: 120px;
-    max-height: 420px; overflow-y: auto; padding: 4px; }
-  .bubble { max-width: 85%; padding: 9px 13px; border-radius: 16px; font-size: 14px; line-height: 1.4; }
+  .bottomnav button {
+    flex: 1; font-size: 19px; font-weight: 700; padding: 16px 8px 20px;
+    background: none; border: none; color: var(--muted); cursor: pointer;
+  }
+  .bottomnav button.active { color: var(--accent); }
+  .bottomnav .nico { display: block; font-size: 26px; margin-bottom: 2px; }
+  /* setup form */
+  .fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+  .fgrid .full { grid-column: 1 / -1; }
+  label { display: block; font-size: 16px; font-weight: 700; color: var(--muted); margin-bottom: 5px; }
+  input, select {
+    width: 100%; font-size: 19px; padding: 12px 14px; border-radius: 10px;
+    border: 1px solid var(--line); background: #fff; color: var(--ink);
+  }
+  .checkrow { display: flex; gap: 16px; flex-wrap: wrap; font-size: 18px; }
+  .checkrow label { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 600; color: var(--ink); }
+  .checkrow input { width: 22px; height: 22px; }
+  .notice { background: var(--warn-soft); color: var(--warn); border-radius: 12px; padding: 14px 16px; font-size: 17px; margin-top: 14px; }
+  .notice.good { background: var(--accent-soft); color: var(--accent); }
+  /* demo drawer */
+  .drawer {
+    position: fixed; top: 0; right: -390px; width: 380px; height: 100vh;
+    background: #1c1c22; color: #eee; z-index: 60; transition: right .25s ease;
+    padding: 18px 16px; overflow-y: auto; font-size: 15px;
+  }
+  .drawer.open { right: 0; box-shadow: -8px 0 30px rgba(0,0,0,.35); }
+  .drawer h3 { font-size: 16px; color: #bbb; margin: 14px 0 8px; }
+  .drawer .close { float: right; background: none; border: none; color: #888; font-size: 22px; cursor: pointer; }
+  .msgs { display: flex; flex-direction: column; gap: 8px; padding: 4px; max-height: 300px; overflow-y: auto; }
+  .bubble { max-width: 88%; padding: 9px 13px; border-radius: 16px; font-size: 14px; line-height: 1.4; }
   .bubble.in { background: #34343c; align-self: flex-start; }
   .bubble.out { background: #2e7dd1; align-self: flex-end; }
   .bubble .who { font-size: 11px; color: #999; margin-bottom: 3px; }
-  .phone .reply { display: flex; gap: 8px; margin-top: 12px; }
-  .phone input {
-    flex: 1; border-radius: 999px; border: none; padding: 10px 14px; font-size: 14px;
-    background: #2a2a31; color: #eee;
-  }
-  .phone .send {
-    background: #2e7dd1; border: none; color: #fff; border-radius: 999px;
-    width: 40px; height: 40px; font-size: 16px; cursor: pointer;
-  }
-  .phone .quick { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-  .phone .quick button {
-    background: #2a2a31; color: #ccc; border: 1px solid #3a3a44; border-radius: 999px;
-    font-size: 12px; padding: 5px 10px; cursor: pointer;
-  }
-  .spinner {
-    display: inline-block; width: 16px; height: 16px; border: 2px solid var(--line);
-    border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite;
-    vertical-align: middle; margin-right: 8px;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .hidden { display: none !important; }
-  .explain {
-    background: #f4effc; border-left: 4px solid #5b3aa6; padding: 14px 16px;
-    border-radius: 8px; font-size: 15px; margin: 14px 0;
-  }
-  .explain .lbl { font-size: 12px; font-weight: 800; color: #5b3aa6; letter-spacing: .05em; }
-  footer { text-align: center; color: var(--muted); font-size: 13px; padding: 18px; }
+  .reply { display: flex; gap: 8px; margin-top: 10px; }
+  .reply input { background: #2a2a31; border: none; color: #eee; border-radius: 999px; font-size: 14px; padding: 10px 14px; }
+  .reply button { background: #2e7dd1; border: none; color: #fff; border-radius: 999px; width: 40px; height: 40px; font-size: 16px; cursor: pointer; }
+  .quick { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .quick button { background: #2a2a31; color: #ccc; border: 1px solid #3a3a44; border-radius: 999px; font-size: 12px; padding: 5px 10px; cursor: pointer; }
+  .techfeed { display: flex; flex-direction: column; gap: 6px; }
+  .tf { font-size: 12.5px; background: #23232a; border-radius: 8px; padding: 7px 10px; color: #ccc; }
+  .tf .k { font-weight: 800; text-transform: uppercase; font-size: 10px; margin-right: 6px; }
+  .k.gemma { color: #b79af0; } .k.tool { color: #7fb2dd; } .k.state { color: #7fd0b2; }
+  .k.sms { color: #e6cd76; } .k.adapt { color: #e68ab8; } .k.error { color: #e6907a; }
+  .twstatus { font-size: 13px; padding: 8px 10px; border-radius: 8px; background: #23232a; margin-top: 8px; }
+  .drawer .rbtn { width: 100%; margin-top: 12px; background: #2a2a31; color: #ccc; border: 1px solid #3a3a44; border-radius: 8px; padding: 9px; font-size: 14px; cursor: pointer; }
+  footer { text-align: center; color: var(--muted); font-size: 13px; padding: 14px 14px 110px; }
 </style>
 </head>
 <body>
@@ -135,180 +134,176 @@
   <div class="logo">RR</div>
   <div>
     <h1>RuralRelay</h1>
-    <div class="tag">On-device care coordination for older adults · Powered by Gemma</div>
+    <div class="sub" id="statusHuman">Here to help you get to your care</div>
   </div>
-  <div class="status-pill" id="statusPill">NEEDS_APPOINTMENT</div>
+  <div class="hbtns">
+    <button class="hbtn" onclick="showView('setup')">⚙️ Setup</button>
+    <button class="hbtn" onclick="toggleDrawer()">🛠 Demo</button>
+  </div>
 </header>
 
-<div class="layout">
-  <div class="main">
-    <nav>
-      <button data-tab="today" class="active">Today<span class="dot" id="todayDot"></span></button>
-      <button data-tab="coordinate">Coordinate</button>
-      <button data-tab="ride">Ride</button>
-      <button data-tab="calendar">Care Calendar</button>
-      <button data-tab="profile">Profile</button>
-    </nav>
+<main>
 
-    <!-- ============ TODAY ============ -->
-    <section id="tab-today">
-      <div class="card" id="needCard">
-        <h2>Cardiology follow-up due</h2>
-        <div class="kv">
-          <span class="k">Last visit</span><span>February 8</span>
-          <span class="k">Usual interval</span><span>Every 6 months</span>
-          <span class="k">Preferred physician</span><span>Regional Heart Center</span>
-          <span class="k">Distance</span><span>34 miles</span>
-        </div>
-        <p class="privacy" style="margin-top:10px">This reminder exists because Eleanor entered a recurring care plan — RuralRelay never decides what medical care someone needs.</p>
-        <div style="margin-top:16px">
-          <button class="btn" id="coordinateBtn" onclick="startCoordinate()">Coordinate appointment</button>
-        </div>
-      </div>
-      <div class="card hidden" id="doneCard">
-        <h2>You're all set 🎉</h2>
-        <p id="doneSummary"></p>
-        <div style="margin-top:12px"><button class="btn secondary" onclick="showTab('calendar')">View care calendar</button></div>
-      </div>
-    </section>
+  <!-- ============ HOME ============ -->
+  <section class="view active" id="view-home">
+    <div class="greeting" id="greetName">Good morning 👋</div>
+    <div class="subgreet">Here's what needs your attention.</div>
+    <div class="card" id="needCard">
+      <h2 id="needTitle">Check-up due</h2>
+      <p class="plain" id="needBody"></p>
+      <button class="bigbtn" id="goBtn" onclick="startCoordinate()">Yes, help me book it</button>
+    </div>
+    <div class="card" id="allSet" style="display:none">
+      <h2>Nothing needs your attention right now 😊</h2>
+      <p class="plain">We'll let you know when your next check-up is coming due.</p>
+    </div>
+  </section>
 
-    <!-- ============ COORDINATE ============ -->
-    <section id="tab-coordinate" class="hidden">
-      <div class="card">
-        <h2><span class="spinner hidden" id="coordSpinner"></span>Agent activity</h2>
-        <p class="privacy" style="margin-bottom:12px">Gemma runs locally on this device. It plans each step, calls approved tools, and interprets replies — every action below happened inside the state machine's guardrails.</p>
-        <div class="feed" id="activityFeed"><p class="privacy">No coordination started yet. Go to Today and press “Coordinate appointment.”</p></div>
-      </div>
-    </section>
+  <!-- ============ WORKING ============ -->
+  <section class="view" id="view-working">
+    <div class="greeting" style="font-size:26px" id="workTitle">Working on it…</div>
+    <div class="subgreet" id="workSub">This takes a moment. You don't need to do anything.</div>
+    <div class="card">
+      <div class="steps" id="friendlySteps"></div>
+    </div>
+  </section>
 
-    <!-- ============ RIDE ============ -->
-    <section id="tab-ride" class="hidden">
-      <div class="card" id="rideWaiting">
-        <h2>Transportation</h2>
-        <p class="privacy">No transportation request in progress.</p>
+  <!-- ============ REVIEW ============ -->
+  <section class="view" id="view-review">
+    <div class="greeting" style="font-size:27px">Here's your plan</div>
+    <div class="subgreet">Please look it over. Nothing is booked until you say OK.</div>
+    <div class="card">
+      <div id="planRows"></div>
+      <div class="why" id="whyBox" style="display:none">
+        <div class="lbl">WHY THIS WORKS FOR YOU</div>
+        <div id="whyText"></div>
       </div>
-      <div class="card hidden" id="rideAsked">
-        <h2><span class="spinner"></span>Waiting for Sarah…</h2>
-        <p>This appointment is 34 miles from Eleanor's home. RuralRelay texted Sarah to ask if she can drive. Reply on Sarah's phone (right) to continue the story.</p>
-        <div class="notice" style="margin-top:12px">Shared with Sarah: ✓ appointment time ✓ provider location ✓ transportation request &nbsp;·&nbsp; Not shared: ✗ medical history ✗ medications ✗ insurance details</div>
-      </div>
-      <div class="card hidden" id="ridePlan">
-        <h2>Review care plan</h2>
-        <div id="planBody"></div>
-        <div class="explain hidden" id="planExplain"><div class="lbl">WHY THIS PLAN — GEMMA</div><div id="planExplainText"></div></div>
-        <div style="margin-top:14px; display:flex; gap:10px;">
-          <button class="btn" onclick="confirmPlan()">Confirm appointment and ride</button>
-          <button class="btn ghost">Try another appointment</button>
-        </div>
-      </div>
-      <div class="card hidden" id="rideConfirmed">
-        <h2>Plan confirmed ✓</h2>
-        <div id="confirmedBody"></div>
-      </div>
-    </section>
+      <button class="bigbtn" onclick="confirmPlan()">✓ Yes, book everything</button>
+      <button class="bigbtn gray" onclick="showView('home')">Not now</button>
+    </div>
+  </section>
 
-    <!-- ============ CALENDAR ============ -->
-    <section id="tab-calendar" class="hidden">
-      <div class="card">
-        <h2>Care timeline</h2>
-        <div class="timeline" id="timeline"></div>
-      </div>
-    </section>
+  <!-- ============ DONE ============ -->
+  <section class="view" id="view-done">
+    <div class="greeting" id="doneGreet">You're all set! 🎉</div>
+    <div class="subgreet">Everything is booked. Here's your day:</div>
+    <div class="card"><div id="doneRows"></div>
+      <div class="notice good" id="doneNote"></div>
+    </div>
+    <button class="bigbtn gray" onclick="showView('schedule')">See my full schedule</button>
+  </section>
 
-    <!-- ============ PROFILE ============ -->
-    <section id="tab-profile" class="hidden">
-      <div class="card">
-        <h2>Eleanor's profile</h2>
-        <div class="kv" id="profileKv"></div>
-        <div style="margin-top:16px; display:flex; gap:10px; align-items:center;">
-          <button class="btn secondary" onclick="alert('Secure onboarding link sent to Sarah (demo).')">Share setup with Sarah</button>
-          <span class="privacy">Sends a secure onboarding link by text.</span>
-        </div>
+  <!-- ============ SCHEDULE ============ -->
+  <section class="view" id="view-schedule">
+    <div class="greeting" style="font-size:27px">My schedule</div>
+    <div class="subgreet">Your appointments and rides, in order.</div>
+    <div class="card"><div class="timeline" id="timeline"></div></div>
+  </section>
+
+  <!-- ============ SETUP (caregiver-facing) ============ -->
+  <section class="view" id="view-setup">
+    <div class="greeting" style="font-size:27px">Caregiver setup</div>
+    <div class="subgreet">Usually filled in by a family member or caregiver, once.</div>
+    <div class="card">
+      <div class="fgrid">
+        <div><label>First name</label><input id="f_first" value="Eleanor"></div>
+        <div><label>Last name</label><input id="f_last" value="Brooks"></div>
+        <div><label>Age</label><input id="f_age" type="number" value="78"></div>
+        <div><label>Town</label><input id="f_town" value="Pine Ridge, Pennsylvania"></div>
+        <div><label>Insurance</label>
+          <select id="f_ins"><option>Medicare</option><option>Medicaid</option><option>Commercial</option></select></div>
+        <div><label>Preferred pharmacy</label><input id="f_pharm" value="Pine Ridge Pharmacy"></div>
+        <div class="full"><label>Gets around with</label>
+          <div class="checkrow">
+            <label><input type="checkbox" id="f_walker" checked> Walker</label>
+            <label><input type="checkbox" id="f_wheel"> Wheelchair</label>
+            <label><input type="checkbox" id="f_none"> No aid</label>
+          </div></div>
+        <div><label>Best time for appointments</label>
+          <select id="f_time"><option value="weekday mornings">Mornings</option><option value="weekday afternoons">Afternoons</option></select></div>
+        <div></div>
+        <div><label>Caregiver name</label><input id="f_cgname" value="Sarah Brooks"></div>
+        <div><label>Caregiver cell (for real texts)</label><input id="f_cgphone" value="+1-555-0142" placeholder="+15551234567"></div>
+        <div><label>Type of recurring care</label><input id="f_care" value="cardiology follow-up"></div>
+        <div><label>Usual doctor's office</label><input id="f_prov" value="Regional Heart Center"></div>
+        <div><label>How often (months)</label><input id="f_interval" type="number" value="6"></div>
+        <div><label>Last visit</label><input id="f_last_visit" type="date" value="2026-02-08"></div>
       </div>
-      <div class="card">
-        <h3>Tell RuralRelay something in your own words</h3>
-        <p class="privacy" style="margin-bottom:10px">Gemma converts conversational answers into structured preferences — try “I don't like driving after dark and mornings are best for me.”</p>
-        <div style="display:flex; gap:8px;">
-          <input id="onboardInput" style="flex:1; font-size:16px; padding:10px 14px; border-radius:10px; border:1px solid var(--line);" placeholder="Type a preference in plain language…">
-          <button class="btn" onclick="sendOnboard()" id="onboardBtn">Interpret</button>
-        </div>
-        <div class="explain hidden" id="onboardOut" style="margin-top:12px"><div class="lbl">STRUCTURED BY GEMMA</div><pre id="onboardJson" style="font-size:13px; white-space:pre-wrap; margin-top:6px;"></pre></div>
+      <button class="bigbtn" style="font-size:20px" onclick="saveProfile()">Save profile</button>
+      <div class="notice good" id="saveNote" style="display:none">Saved! The Today screen now reflects this profile.</div>
+    </div>
+    <div class="card">
+      <h2 style="font-size:20px">Anything else we should know?</h2>
+      <p class="plain" style="font-size:16px; margin-bottom:10px">Type it naturally — Gemma (running on this device) turns it into preferences. Try: "I don't like driving after dark and mornings are best for me."</p>
+      <div style="display:flex; gap:8px;">
+        <input id="onboardInput" placeholder="Type in plain language…">
+        <button class="bigbtn" style="width:auto; margin:0; font-size:18px; padding:12px 18px;" onclick="sendOnboard()" id="onboardBtn">Add</button>
       </div>
-      <div class="card">
-        <h3>Privacy model</h3>
-        <p class="privacy">Eleanor's full care profile and all planning logic stay on this device — Gemma runs locally via Ollama. External services receive only the minimum information needed to complete an action Eleanor approved.</p>
+      <div class="why" id="onboardOut" style="display:none; margin-top:12px">
+        <div class="lbl">UNDERSTOOD AS</div><div id="onboardText"></div>
       </div>
-    </section>
+    </div>
+  </section>
+
+</main>
+
+<!-- bottom navigation: two big targets only -->
+<nav class="bottomnav">
+  <button id="nav-home" class="active" onclick="showView('home')"><span class="nico">🏠</span>Home</button>
+  <button id="nav-schedule" onclick="showView('schedule')"><span class="nico">📅</span>My Schedule</button>
+</nav>
+
+<!-- ============ DEMO DRAWER (judges / caregiver phone) ============ -->
+<aside class="drawer" id="drawer">
+  <button class="close" onclick="toggleDrawer()">✕</button>
+  <h3>📱 Caregiver's phone (SMS)</h3>
+  <div class="twstatus" id="twStatus">Simulator mode — set TWILIO_* env vars for real SMS</div>
+  <div class="msgs" id="phoneMsgs"></div>
+  <div class="reply">
+    <input id="smsInput" placeholder="Reply as caregiver…" onkeydown="if(event.key==='Enter')sendSms()">
+    <button onclick="sendSms()">➤</button>
   </div>
+  <div class="quick">
+    <button onclick="quick('NO, I have work meetings all day Tuesday, sorry')">Busy that day</button>
+    <button onclick="quick('YES I can take her')">Can drive</button>
+    <button onclick="quick('I could drive her there but not home')">Partial</button>
+  </div>
+  <h3>⚙️ Agent activity (technical)</h3>
+  <div class="techfeed" id="techFeed"></div>
+  <button class="rbtn" onclick="resetDemo()">↺ Reset demo</button>
+</aside>
 
-  <!-- ============ SARAH'S PHONE ============ -->
-  <aside class="phone">
-    <div class="phead">📱 Sarah's phone — SMS simulator<br><span style="font-size:12px">(a real Twilio webhook points at the same endpoint)</span></div>
-    <div class="msgs" id="phoneMsgs"></div>
-    <div class="reply">
-      <input id="smsInput" placeholder="Reply as Sarah…" onkeydown="if(event.key==='Enter')sendSms()">
-      <button class="send" onclick="sendSms()">➤</button>
-    </div>
-    <div class="quick">
-      <button onclick="quick('NO, I have work meetings all day Tuesday, sorry')">Busy that day</button>
-      <button onclick="quick('YES I can take her')">Can drive</button>
-      <button onclick="quick('I could drive her there but not home')">Partial</button>
-    </div>
-  </aside>
-</div>
-
-<footer>RuralRelay · Build with Gemma NYC hackathon · Decision-support for care logistics only — not diagnosis or treatment · Synthetic data</footer>
+<footer>RuralRelay · On-device Gemma · Care logistics only — not diagnosis or treatment · Synthetic data</footer>
 
 <script>
-let state = null;
-let activityCount = 0;
+let state = null, profile = null, config = null;
+let currentView = 'home', userPinned = false, lastStatus = '';
 
-function showTab(name) {
-  document.querySelectorAll('nav button').forEach(b =>
-    b.classList.toggle('active', b.dataset.tab === name));
-  ['today','coordinate','ride','calendar','profile'].forEach(t =>
-    document.getElementById('tab-' + t).classList.toggle('hidden', t !== name));
+const HUMAN_STATUS = {
+  NEEDS_APPOINTMENT: "Here to help you get to your care",
+  APPOINTMENT_HELD: "Finding your appointment…",
+  TRANSPORT_NEEDED: "Sorting out your ride…",
+  CAREGIVER_CONTACTED: "Waiting to hear back about your ride",
+  CAREGIVER_UNAVAILABLE: "Finding you another ride…",
+  TRANSPORT_FOUND: "Almost ready…",
+  AWAITING_USER_CONFIRMATION: "Your plan is ready to review",
+  CONFIRMED: "You're all set!",
+};
+
+function showView(name, pinned = true) {
+  currentView = name; userPinned = pinned;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.getElementById('nav-home').classList.toggle('active', name === 'home');
+  document.getElementById('nav-schedule').classList.toggle('active', name === 'schedule');
+  if (name === 'schedule') refreshCalendar();
 }
-document.querySelectorAll('nav button').forEach(b =>
-  b.addEventListener('click', () => showTab(b.dataset.tab)));
+function toggleDrawer() { document.getElementById('drawer').classList.toggle('open'); }
 
 async function startCoordinate() {
-  document.getElementById('coordinateBtn').disabled = true;
-  showTab('coordinate');
+  document.getElementById('goBtn').disabled = true;
   await fetch('/coordinate', { method: 'POST' });
-}
-
-async function sendSms() {
-  const input = document.getElementById('smsInput');
-  const text = input.value.trim();
-  if (!text) return;
-  input.value = '';
-  addBubble('out', text, 'Sarah');
-  await fetch('/caregiver-response', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text })
-  });
-}
-function quick(t) { document.getElementById('smsInput').value = t; sendSms(); }
-
-let localBubbles = [];
-function addBubble(dir, text, who) {
-  // Remember how many inbound messages existed when Sarah replied so the
-  // conversation renders in chronological order.
-  localBubbles.push({ dir, text, who, afterInbound: (state?.sms_outbox || []).length });
-  renderPhone();
-}
-
-function renderPhone() {
-  const el = document.getElementById('phoneMsgs');
-  const inbound = (state?.sms_outbox || []).map(m =>
-    ({ dir: 'in', text: m.body, who: 'RuralRelay → ' + m.to + (m.via === 'twilio' ? ' (Twilio)' : '') }));
-  const all = [...inbound];
-  // Insert Sarah's replies at the position they were sent (later inserts shift earlier ones).
-  [...localBubbles].reverse().forEach(b => all.splice(b.afterInbound, 0, b));
-  el.innerHTML = all.map(b =>
-    `<div class="bubble ${b.dir}"><div class="who">${b.who}</div>${b.text}</div>`).join('');
-  el.scrollTop = el.scrollHeight;
+  showView('working', false);
 }
 
 async function confirmPlan() {
@@ -316,127 +311,228 @@ async function confirmPlan() {
   await refreshCalendar();
 }
 
-async function sendOnboard() {
-  const input = document.getElementById('onboardInput');
+async function resetDemo() {
+  await fetch('/reset', { method: 'POST' });
+  localBubbles = []; lastStatus = '';
+  document.getElementById('goBtn').disabled = false;
+  await loadProfile(); showView('home', false);
+}
+
+/* ---------- caregiver phone sim ---------- */
+let localBubbles = [];
+async function sendSms() {
+  const input = document.getElementById('smsInput');
   const text = input.value.trim();
   if (!text) return;
-  document.getElementById('onboardBtn').disabled = true;
-  const r = await fetch('/onboarding-note', {
+  input.value = '';
+  localBubbles.push({ dir: 'out', text, who: cgFirst(), afterInbound: (state?.sms_outbox || []).length });
+  renderPhone();
+  await fetch('/caregiver-response', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text })
   });
-  const out = await r.json();
-  document.getElementById('onboardOut').classList.remove('hidden');
-  document.getElementById('onboardJson').textContent = JSON.stringify(out, null, 2);
-  document.getElementById('onboardBtn').disabled = false;
+}
+function quick(t) { document.getElementById('smsInput').value = t; sendSms(); }
+function cgFirst() { return (profile?.caregiver?.name || 'Caregiver').split(' ')[0]; }
+
+function renderPhone() {
+  const el = document.getElementById('phoneMsgs');
+  const inbound = (state?.sms_outbox || []).map(m =>
+    ({ dir: 'in', text: m.body, who: 'RuralRelay → ' + m.to + (m.via === 'twilio' ? ' · real SMS ✓' : '') }));
+  const all = [...inbound];
+  [...localBubbles].reverse().forEach(b => all.splice(b.afterInbound, 0, b));
+  el.innerHTML = all.map(b =>
+    `<div class="bubble ${b.dir}"><div class="who">${b.who}</div>${b.text}</div>`).join('');
+  el.scrollTop = el.scrollHeight;
 }
 
-function renderActivity() {
-  const feed = document.getElementById('activityFeed');
-  const items = state.activity || [];
-  if (!items.length) return;
-  feed.innerHTML = items.map(a =>
-    `<div class="feed-item"><span class="chip ${a.kind}">${a.kind}</span><span>${a.text}</span></div>`).join('');
-  if (items.length > activityCount) {
-    activityCount = items.length;
-    feed.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+/* ---------- friendly progress ---------- */
+function renderWorking() {
+  const items = (state.activity || []).filter(a => a.friendly);
+  const el = document.getElementById('friendlySteps');
+  el.innerHTML = items.map((a, i) => {
+    const last = i === items.length - 1;
+    const ico = (last && (state.busy || state.status === 'CAREGIVER_CONTACTED'))
+      ? '<span class="spinner"></span>' : '✅';
+    return `<div class="step"><span class="ico">${ico}</span><span>${a.friendly}</span></div>`;
+  }).join('');
+  const waiting = state.status === 'CAREGIVER_CONTACTED';
+  document.getElementById('workTitle').textContent =
+    waiting ? `Waiting to hear from ${cgFirst()}…` : 'Working on it…';
+  document.getElementById('workSub').textContent = waiting
+    ? `We texted ${cgFirst()} about your ride. You don't need to do anything.`
+    : "This takes a moment. You don't need to do anything.";
+}
+
+/* ---------- review + done ---------- */
+function planRowsHtml() {
+  const a = state.appointment, t = state.transport;
+  const care = (profile?.recurring_care?.[0]?.type || 'appointment');
+  return `
+    <div class="planrow"><span class="ico">🏥</span><div>
+      <b>${care.charAt(0).toUpperCase() + care.slice(1)}</b>
+      <div class="det">${a.provider}<br>${a.day}, ${fmtLong(a.date)} at ${a.time}</div></div></div>
+    <div class="planrow"><span class="ico">🚐</span><div>
+      <b>Your ride: ${t.name}</b>
+      <div class="det">Picks you up at ${t.pickup_time} · Room for your walker<br>Takes you home ${t.return_pickup_time === 'after appointment' ? 'after your visit' : 'at ' + t.return_pickup_time}</div></div></div>
+    <div class="planrow"><span class="ico">🔔</span><div>
+      <b>We'll remind you</b>
+      <div class="det">The day before, and the morning of. ${cgFirst()} gets updates too.</div></div></div>`;
+}
+function renderReview() {
+  document.getElementById('planRows').innerHTML = planRowsHtml();
+  if (state.plan_explanation) {
+    document.getElementById('whyBox').style.display = 'block';
+    document.getElementById('whyText').textContent = state.plan_explanation;
   }
 }
-
-function renderRide() {
-  const s = state.status;
-  const show = id => ['rideWaiting','rideAsked','ridePlan','rideConfirmed'].forEach(x =>
-    document.getElementById(x).classList.toggle('hidden', x !== id));
-  if (s === 'CAREGIVER_CONTACTED') show('rideAsked');
-  else if (s === 'AWAITING_USER_CONFIRMATION' || s === 'TRANSPORT_FOUND') {
-    show('ridePlan');
-    const a = state.appointment, t = state.transport;
-    document.getElementById('planBody').innerHTML = `
-      <div class="kv">
-        <span class="k">Appointment</span><span><b>${a.provider}</b><br>${a.day}, August ${parseInt(a.date.slice(-2))} at ${a.time} · ${a.distance_miles} miles away</span>
-        <span class="k">Transportation</span><span><b>${t.name}</b><br>Pickup ${t.pickup_time} · Walker-accessible · Return pickup ${t.return_pickup_time}</span>
-        <span class="k">Notifications</span><span>Eleanor: confirmation, day-before, morning-of<br>Sarah: confirmation and status updates</span>
-      </div>`;
-    if (state.plan_explanation) {
-      document.getElementById('planExplain').classList.remove('hidden');
-      document.getElementById('planExplainText').textContent = state.plan_explanation;
-    }
-  } else if (s === 'CONFIRMED') {
-    show('rideConfirmed');
-    const a = state.appointment, t = state.transport;
-    document.getElementById('confirmedBody').innerHTML = `
-      <div class="notice good">Everything is booked. Eleanor and Sarah both received confirmations, and reminders are scheduled.</div>
-      <div class="kv">
-        <span class="k">Appointment</span><span>${a.provider} — ${a.day} at ${a.time}</span>
-        <span class="k">Ride</span><span>${t.name} — pickup ${t.pickup_time}</span>
-      </div>`;
-  } else show('rideWaiting');
+function renderDone() {
+  const first = (profile?.patient?.name || '').split(' ')[0];
+  document.getElementById('doneGreet').textContent = `You're all set, ${first}! 🎉`;
+  document.getElementById('doneRows').innerHTML = planRowsHtml();
+  document.getElementById('doneNote').textContent =
+    `We texted you and ${cgFirst()} a confirmation.`;
 }
 
-function renderToday() {
-  const confirmed = state.status === 'CONFIRMED';
-  document.getElementById('needCard').classList.toggle('hidden', confirmed);
-  document.getElementById('doneCard').classList.toggle('hidden', !confirmed);
-  document.getElementById('todayDot').classList.toggle('hidden', confirmed);
-  if (confirmed && state.appointment) {
-    document.getElementById('doneSummary').textContent =
-      `Cardiology follow-up booked for ${state.appointment.day} at ${state.appointment.time}, with a walker-accessible ride arranged door to door.`;
-  }
-}
-
+/* ---------- schedule ---------- */
 async function refreshCalendar() {
   const r = await fetch('/calendar');
   const { events } = await r.json();
   const fmt = d => {
-    const [y, m, day] = d.split('-');
-    const mo = ['','JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][parseInt(m)];
-    return `${mo} ${parseInt(day)}`;
+    const m = ['','JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][parseInt(d.slice(5,7))];
+    return `${m} ${parseInt(d.slice(-2))}`;
   };
   document.getElementById('timeline').innerHTML = events.map(e => `
     <div class="ev ${e.kind}">
       <div class="date">${fmt(e.date)}</div>
       <div><b>${e.time ? e.time + ' — ' : ''}${e.title}</b>
-      <div class="meta">${e.status}${e.kind === 'future' ? ' · Auto-coordinate: Enabled' : ''}</div></div>
+      <div class="meta">${e.status}</div></div>
     </div>`).join('');
 }
+function fmtLong(d) {
+  const m = ['','January','February','March','April','May','June','July','August','September','October','November','December'][parseInt(d.slice(5,7))];
+  return `${m} ${parseInt(d.slice(-2))}`;
+}
 
-const RIDE_STATES = ['CAREGIVER_CONTACTED','CAREGIVER_UNAVAILABLE','TRANSPORT_FOUND','AWAITING_USER_CONFIRMATION'];
-let lastStatus = '';
+/* ---------- home ---------- */
+function renderHome() {
+  if (!profile) return;
+  const first = profile.patient.name.split(' ')[0];
+  const h = new Date().getHours();
+  const part = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+  document.getElementById('greetName').textContent = `Good ${part}, ${first} 👋`;
+  const due = state && state.status === 'NEEDS_APPOINTMENT';
+  document.getElementById('needCard').style.display = due ? 'block' : 'none';
+  document.getElementById('allSet').style.display = due ? 'none' : 'block';
+  if (due) {
+    const rc = profile.recurring_care[0];
+    const care = rc.type.charAt(0).toUpperCase() + rc.type.slice(1);
+    document.getElementById('needTitle').textContent = `${care} — time to book`;
+    document.getElementById('needBody').textContent =
+      `It has been about ${rc.interval_months} months since your last visit to ${rc.provider}. Want us to set up the appointment and a ride?`;
+  }
+}
+
+/* ---------- setup ---------- */
+async function saveProfile() {
+  const mobility = [];
+  if (document.getElementById('f_walker').checked) mobility.push('walker');
+  if (document.getElementById('f_wheel').checked) mobility.push('wheelchair');
+  const body = {
+    patient: {
+      name: `${val('f_first')} ${val('f_last')}`.trim(),
+      age: parseInt(val('f_age')) || 0,
+      home_location: val('f_town'),
+      insurance: val('f_ins'),
+      mobility_needs: mobility,
+      preferred_times: [val('f_time')],
+      preferred_pharmacy: val('f_pharm'),
+    },
+    caregiver: { name: val('f_cgname'), relationship: 'caregiver', phone: val('f_cgphone') },
+    recurring_care: [{
+      type: val('f_care'), provider: val('f_prov'),
+      interval_months: parseInt(val('f_interval')) || 6,
+      last_visit: val('f_last_visit'),
+      source: 'caregiver-entered recurring plan',
+    }],
+  };
+  const r = await fetch('/profile', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  profile = await r.json();
+  localBubbles = []; lastStatus = '';
+  document.getElementById('goBtn').disabled = false;
+  document.getElementById('saveNote').style.display = 'block';
+  setTimeout(() => document.getElementById('saveNote').style.display = 'none', 4000);
+  renderHome();
+}
+function val(id) { return document.getElementById(id).value; }
+
+async function sendOnboard() {
+  const input = document.getElementById('onboardInput');
+  const text = input.value.trim();
+  if (!text) return;
+  const btn = document.getElementById('onboardBtn');
+  btn.disabled = true; btn.textContent = '…';
+  const r = await fetch('/onboarding-note', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  });
+  const out = await r.json();
+  document.getElementById('onboardOut').style.display = 'block';
+  document.getElementById('onboardText').innerHTML =
+    (out.summary || '') + '<br><span style="font-size:14px;color:var(--muted)">' +
+    (out.preferences || []).map(p => `${p.field}: ${p.value}`).join(' · ') + '</span>';
+  btn.disabled = false; btn.textContent = 'Add'; input.value = '';
+}
+
+/* ---------- tech feed + polling ---------- */
+function renderTech() {
+  document.getElementById('techFeed').innerHTML = (state.activity || []).map(a =>
+    `<div class="tf"><span class="k ${a.kind}">${a.kind}</span>${a.text}</div>`).join('');
+}
 
 async function poll() {
   try {
     const r = await fetch('/state');
     state = await r.json();
-    document.getElementById('statusPill').textContent = state.status;
-    document.getElementById('coordSpinner').classList.toggle('hidden', !state.busy);
-    renderActivity(); renderPhone(); renderRide(); renderToday();
-    // Auto-advance the visible tab at key story beats.
+    document.getElementById('statusHuman').textContent =
+      HUMAN_STATUS[state.status] || '';
+    renderPhone(); renderTech();
     if (state.status !== lastStatus) {
-      if (state.status === 'CAREGIVER_CONTACTED') showTab('ride');
-      if (state.status === 'AWAITING_USER_CONFIRMATION') showTab('ride');
-      lastStatus = state.status;
+      lastStatus = state.status; userPinned = false;
     }
+    // Route the visible screen from the coordination status unless the user
+    // explicitly navigated somewhere (Schedule/Setup stay put).
+    if (!userPinned) {
+      const s = state.status;
+      if (s === 'NEEDS_APPOINTMENT') { renderHome(); if (currentView !== 'home') showView('home', false); }
+      else if (s === 'AWAITING_USER_CONFIRMATION') { renderReview(); if (currentView !== 'review') showView('review', false); }
+      else if (s === 'CONFIRMED') { renderDone(); if (currentView !== 'done') showView('done', false); }
+      else { renderWorking(); if (currentView !== 'working') showView('working', false); }
+    } else if (currentView === 'working') renderWorking();
+    renderHome();
   } catch (e) { /* server restarting; keep polling */ }
   setTimeout(poll, 1200);
 }
 
 async function loadProfile() {
   const r = await fetch('/profile');
-  const p = await r.json();
-  const rows = [
-    ['Name', p.patient.name], ['Home location', p.patient.home_location],
-    ['Insurance', p.patient.insurance],
-    ['Primary caregiver', `${p.caregiver.name} (${p.caregiver.relationship})`],
-    ['Mobility need', 'Uses a walker'],
-    ['Current cardiologist', p.recurring_care[0].provider],
-    ['Recurring care', `Cardiology every ${p.recurring_care[0].interval_months} months`],
-    ['Preferred pharmacy', p.patient.preferred_pharmacy],
-  ];
-  document.getElementById('profileKv').innerHTML =
-    rows.map(([k, v]) => `<span class="k">${k}</span><span>${v}</span>`).join('');
+  profile = await r.json();
+  renderHome();
+}
+async function loadConfig() {
+  try {
+    const r = await fetch('/config');
+    config = await r.json();
+    document.getElementById('twStatus').innerHTML = config.twilio
+      ? `🟢 <b>Real SMS on</b> — texting ${config.caregiver_phone} via Twilio`
+      : '⚪ Simulator mode — set TWILIO_* env vars (or .env) for real SMS';
+  } catch (e) {}
 }
 
-loadProfile(); refreshCalendar(); poll();
+loadProfile(); loadConfig(); refreshCalendar(); poll();
 </script>
 </body>
 </html>

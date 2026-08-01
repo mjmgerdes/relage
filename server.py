@@ -60,9 +60,12 @@ ALLOWED = {
 }
 
 
-def log(kind: str, text: str, detail: dict | None = None):
+def log(kind: str, text: str, detail: dict | None = None,
+        friendly: str | None = None):
+    """Record an activity item. `text` is the technical line (demo drawer);
+    `friendly` is the plain-language line shown to the patient."""
     STATE["activity"].append({"kind": kind, "text": text,
-                              "detail": detail or {}})
+                              "friendly": friendly, "detail": detail or {}})
 
 
 def caregiver_acceptance_rate() -> float:
@@ -75,6 +78,30 @@ def caregiver_acceptance_rate() -> float:
 @app.get("/profile")
 def get_profile():
     return PROFILE
+
+
+@app.post("/profile")
+async def update_profile(request: Request):
+    """Replace the demo profile (caregiver setup screen). Accepts the same
+    shape as data/profile.json; missing sections keep their current values.
+    Resets any in-flight coordination since the plan inputs changed."""
+    body = await request.json()
+    for key in ("patient", "caregiver", "recurring_care", "transport_preferences"):
+        if key in body and body[key]:
+            if isinstance(PROFILE.get(key), dict) and isinstance(body[key], dict):
+                PROFILE[key].update(body[key])
+            else:
+                PROFILE[key] = body[key]
+    reset()
+    return PROFILE
+
+
+@app.get("/config")
+def get_config():
+    """UI feature flags: whether outbound SMS is really going through Twilio."""
+    import tools as t
+    return {"twilio": t.twilio_configured(),
+            "caregiver_phone": PROFILE["caregiver"].get("phone", "")}
 
 
 @app.get("/state")
@@ -137,27 +164,38 @@ def _coordinate_worker():
                      "preferred_provider": care["provider"],
                      "location": patient["home_location"]},
             default="search_providers")
-        log("gemma", f"Plan: {plan['tool']} — {plan['reason']}", plan)
+        log("gemma", f"Plan: {plan['tool']} — {plan['reason']}", plan,
+            friendly=f"Finding a doctor who takes {patient['insurance']}…")
 
-        providers = tools.search_providers("cardiology", patient["insurance"],
+        specialty = ("cardiology" if "cardio" in care["type"].lower()
+                     else "primary care")
+        providers = tools.search_providers(specialty, patient["insurance"],
                                            care["provider"])
         log("tool", f"search_providers → {len(providers)} in-network match(es)",
-            {"top": providers[0]["name"] if providers else None})
+            {"top": providers[0]["name"] if providers else None},
+            friendly=f"Found {providers[0]['name']} — they take "
+                     f"{patient['insurance']}.")
 
         slot = tools.check_availability(providers[0]["name"],
                                         patient["preferred_times"])
         log("tool", f"check_availability → {slot['day']}, {slot['date']} "
-                    f"at {slot['time']}", slot)
+                    f"at {slot['time']}", slot,
+            friendly=f"They have an opening {slot['day']} morning at "
+                     f"{slot['time']}.")
 
         STATE["appointment"] = tools.hold_appointment(slot)
         STATE["status"] = "APPOINTMENT_HELD"
         log("state", "Appointment tentatively held — nothing is booked until "
-                     "Eleanor confirms the complete plan.")
+                     "the patient confirms the complete plan.",
+            friendly="Holding that time for you — nothing is booked until "
+                     "you say OK.")
 
-        # Appointment is 34 miles away -> transportation must be resolved.
+        # Long distance -> transportation must be resolved before booking.
         STATE["status"] = "TRANSPORT_NEEDED"
         log("state", f"Appointment is {slot['distance_miles']} miles from "
-                     "home — transportation needed.")
+                     "home — transportation needed.",
+            friendly=f"That office is {slot['distance_miles']} miles away, "
+                     "so let's sort out your ride.")
 
         # -- Adaptive preference logic: RuralRelay adapts its coordination
         # order based on prior outcomes while keeping the user in control.
@@ -171,17 +209,24 @@ def _coordinate_worker():
                           "stored preference.")
         log("adapt", order_note, PROFILE["transport_preferences"])
 
-        # -- Minimum-necessary sharing: Sarah gets time and place, never the
-        # profile, history, or insurance details.
-        sms_body = (f"Hi Sarah, Eleanor has a cardiology appointment available "
-                    f"{slot['day']}, August {int(slot['date'][-2:])} at "
-                    f"{slot['time']} at {slot['provider']}. Would you be able "
-                    f"to drive her? Reply YES or NO.")
+        # -- Minimum-necessary sharing: the caregiver gets time and place,
+        # never the profile, history, or insurance details.
+        cg = PROFILE["caregiver"]["name"].split()[0]
+        first = patient["name"].split()[0]
+        month = ["", "January", "February", "March", "April", "May", "June",
+                 "July", "August", "September", "October", "November",
+                 "December"][int(slot["date"][5:7])]
+        sms_body = (f"Hi {cg}, {first} has a {care['type']} appointment "
+                    f"available {slot['day']}, {month} {int(slot['date'][-2:])} "
+                    f"at {slot['time']} at {slot['provider']}. Would you be "
+                    f"able to drive her? Reply YES or NO.")
         tools.send_sms(PROFILE["caregiver"]["name"],
                        PROFILE["caregiver"]["phone"], sms_body,
                        STATE["sms_outbox"])
         STATE["status"] = "CAREGIVER_CONTACTED"
-        log("sms", "Texted Sarah to ask about the ride. Waiting for her reply…")
+        log("sms", f"Texted {cg} to ask about the ride. Waiting for reply…",
+            friendly=f"We texted {cg} to ask if she can drive you. "
+                     "Waiting to hear back…")
     except Exception as e:
         log("error", f"Coordination error: {e}")
     finally:
@@ -212,29 +257,38 @@ def _caregiver_worker(text: str):
         slot = STATE["appointment"]
 
         # -- Gemma use #3: free-text caregiver reply -> structured availability
+        cg = PROFILE["caregiver"]["name"].split()[0]
+        first = PROFILE["patient"]["name"].split()[0]
         parsed = gemma.interpret_reply(
-            text, f"Can you drive Eleanor to her {slot['time']} appointment "
+            text, f"Can you drive {first} to her {slot['time']} appointment "
                   f"on {slot['day']}?")
         STATE["caregiver_reply"] = {"text": text, **parsed}
-        log("gemma", f"Interpreted Sarah's reply: {parsed['summary']}", parsed)
+        log("gemma", f"Interpreted {cg}'s reply: {parsed['summary']}", parsed,
+            friendly=f"{cg} answered: {parsed['summary']}")
 
         if parsed.get("can_drive") and not parsed.get("partial"):
-            STATE["transport"] = {"name": "Sarah Brooks (caregiver)",
+            STATE["transport"] = {"name": f"{PROFILE['caregiver']['name']} "
+                                          "(caregiver)",
                                   "type": "caregiver",
                                   "pickup_time": "9:15 AM",
                                   "return_pickup_time": "after appointment",
                                   "status": "confirmed_by_caregiver"}
             STATE["status"] = "AWAITING_USER_CONFIRMATION"
-            log("state", "Sarah can drive — ready for Eleanor to review the plan.")
+            log("state", f"{cg} can drive — ready for plan review.",
+                friendly=f"Good news — {cg} can drive you!")
         else:
             STATE["status"] = "CAREGIVER_UNAVAILABLE"
-            log("state", "Sarah is unavailable. Finding accessible transportation…")
+            log("state", f"{cg} is unavailable. Finding accessible "
+                         "transportation…",
+                friendly=f"{cg} can't make it this time. Let's find you "
+                         "another ride.")
             patient = PROFILE["patient"]
             options = tools.check_transport(slot["distance_miles"],
                                             patient["mobility_needs"],
                                             slot["time"])
-            log("tool", f"check_transport → {len(options)} option(s) that "
-                        "accommodate a walker over 34 miles", {})
+            log("tool", f"check_transport → {len(options)} option(s) matching "
+                        "mobility needs over the distance", {},
+                friendly="Checking local rides with room for your walker…")
 
             # -- Gemma use #4: constraint-aware replanning over the options
             pick = _replan_or_default(options)
@@ -242,7 +296,8 @@ def _caregiver_worker(text: str):
             STATE["status"] = "TRANSPORT_FOUND"
             log("gemma", f"Selected fallback: "
                          f"{STATE['transport']['name']} — {pick['reason']}",
-                pick)
+                pick,
+                friendly=f"Found one: {STATE['transport']['name']}.")
 
         # -- Gemma use #5: explain the plan in plain language
         expl = gemma.explain_plan(
@@ -277,7 +332,8 @@ def confirm_plan():
             "kind": "transport", "status": "reserved"})
     tools.create_calendar_event(cal, {
         "date": slot["date"], "time": slot["time"],
-        "title": f"Cardiology follow-up — {slot['provider']}",
+        "title": f"{PROFILE['recurring_care'][0]['type'].title()} — "
+                 f"{slot['provider']}",
         "kind": "appointment", "status": "confirmed"})
     if t.get("return_pickup_time") and "after" not in t["return_pickup_time"]:
         tools.create_calendar_event(cal, {
@@ -289,15 +345,17 @@ def confirm_plan():
         "title": "Cardiology follow-up window begins — auto-coordinate enabled",
         "kind": "future", "status": "scheduled"})
 
-    tools.send_sms("Eleanor Brooks", "(this device)",
-                   f"Your cardiology appointment is confirmed for {slot['day']}, "
-                   f"August {int(slot['date'][-2:])} at {slot['time']}. "
+    first = PROFILE["patient"]["name"].split()[0]
+    care_type = PROFILE["recurring_care"][0]["type"]
+    tools.send_sms(PROFILE["patient"]["name"], "(this device)",
+                   f"Your {care_type} appointment is confirmed for {slot['day']} "
+                   f"at {slot['time']}. "
                    f"{t['name']} will pick you up at {t.get('pickup_time', 'TBD')}. "
                    "You'll get a reminder the day before and the morning of.",
                    STATE["sms_outbox"])
     tools.send_sms(PROFILE["caregiver"]["name"], PROFILE["caregiver"]["phone"],
-                   "Eleanor's cardiology appointment and ride are confirmed for "
-                   f"{slot['day']} at {slot['time']}. We'll keep you posted.",
+                   f"{first}'s {care_type} appointment and ride are confirmed "
+                   f"for {slot['day']} at {slot['time']}. We'll keep you posted.",
                    STATE["sms_outbox"])
     log("state", "Plan confirmed. Calendar updated, notifications sent.")
     return STATE

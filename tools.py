@@ -20,6 +20,15 @@ from pathlib import Path
 
 DATA = Path(__file__).parent / "data"
 
+# Load .env if present so Twilio credentials can live outside the repo.
+_env_file = Path(__file__).parent / ".env"
+if _env_file.exists():
+    for line in _env_file.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, _, v = line.partition("=")
+            os.environ.setdefault(k.strip(), v.strip().strip('"'))
+
 with open(DATA / "providers.json") as f:
     PROVIDERS = json.load(f)
 with open(DATA / "transport.json") as f:
@@ -83,9 +92,15 @@ def create_calendar_event(events: list, event: dict) -> list:
     return events
 
 
+def twilio_configured() -> bool:
+    return all(os.environ.get(k) for k in
+               ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM"))
+
+
 def send_sms(to_name: str, to_phone: str, body: str, outbox: list) -> dict:
     """Send an SMS. Always lands in the in-app simulator outbox; also sends
-    through Twilio when credentials are configured."""
+    through Twilio (to the phone number stored in the profile) when
+    credentials are configured."""
     msg = {
         "to": to_name,
         "phone": to_phone,
@@ -96,8 +111,11 @@ def send_sms(to_name: str, to_phone: str, body: str, outbox: list) -> dict:
     sid = os.environ.get("TWILIO_ACCOUNT_SID")
     token = os.environ.get("TWILIO_AUTH_TOKEN")
     from_num = os.environ.get("TWILIO_FROM")
-    real_to = os.environ.get("CAREGIVER_PHONE")
-    if sid and token and from_num and real_to:
+    # Real texts go to the number in the profile (E.164, e.g. +15551234567);
+    # CAREGIVER_PHONE env overrides for testing.
+    real_to = os.environ.get("CAREGIVER_PHONE") or to_phone
+    looks_real = real_to.startswith("+") and "555-" not in real_to
+    if sid and token and from_num and looks_real:
         try:
             import urllib.request, urllib.parse, base64
             url = f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"
