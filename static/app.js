@@ -121,7 +121,9 @@ async function startCoordinate(index, button) {
   if (!button) button = document.querySelector('[data-coordinate-index="' + index + '"]');
   button.disabled = true;
   button.textContent = 'Starting your care plan...';
-  showView('working', false);
+  resetStepReveal();
+  showView('working', true);
+  renderWorking();
   try {
     const response = await fetch('/coordinate', {
       method: 'POST',
@@ -159,6 +161,7 @@ async function resetDemo() {
     await fetch('/reset', { method: 'POST' });
     localBubbles = [];
     lastStatus = '';
+    resetStepReveal();
     await loadProfile();
     await poll(true);
     showView('home', false);
@@ -258,6 +261,19 @@ function sourceChips(item) {
   return '<span class="source-chips" aria-label="Sources consulted">' + chips + '</span>';
 }
 
+let stepsRevealed = 0;
+let stepRevealTimer = null;
+let lastStepsKey = '';
+
+function resetStepReveal() {
+  stepsRevealed = 0;
+  lastStepsKey = '';
+  if (stepRevealTimer) {
+    clearTimeout(stepRevealTimer);
+    stepRevealTimer = null;
+  }
+}
+
 function renderWorking() {
   if (!state) return;
   const items = (state.activity || []).filter(function (item) { return item.friendly; });
@@ -270,17 +286,35 @@ function renderWorking() {
     ? ((config && config.voice)
       ? 'Relage is calling ' + cgFirst() + '. If the call reaches voicemail, Relage will try again.'
       : 'Relage sent the ride details to ' + cgFirst() + '. If she cannot help, Relage will find an accessible option.')
-    : 'You can leave this screen open. Relage will stop when it needs your approval.';
+    : 'Relage pauses before booking anything.';
+  if (items.length < stepsRevealed) resetStepReveal();
+  if (items.length && !stepsRevealed) stepsRevealed = 1;
+  if (items.length > stepsRevealed && !stepRevealTimer) {
+    stepRevealTimer = setTimeout(function () {
+      stepRevealTimer = null;
+      stepsRevealed += 1;
+      renderWorking();
+    }, 700);
+  }
   if (!items.length) {
-    el.innerHTML = '<div class="empty-progress">Starting the on-device care planner...</div>';
+    if (lastStepsKey !== 'empty') {
+      el.innerHTML = '<div class="empty-progress">Starting coordination...</div>';
+      lastStepsKey = 'empty';
+    }
     return;
   }
-  el.innerHTML = items.map(function (item, index) {
-    const isLast = index === items.length - 1;
-    const isCurrent = isLast && (state.busy || waiting);
+  const visible = items.slice(0, stepsRevealed);
+  const pending = items.length > stepsRevealed;
+  const key = stepsRevealed + ':' + items.length + ':' + state.busy + ':' + waiting;
+  if (key === lastStepsKey) return;
+  lastStepsKey = key;
+  el.innerHTML = visible.map(function (item, index) {
+    const isLast = index === visible.length - 1;
+    const isCurrent = isLast && (pending || state.busy || waiting);
     const marker = isCurrent ? '<span class="spinner"></span>' : '✓';
     return '<div class="step' + (isCurrent ? ' current' : '') + '"><span class="step-icon">' + marker + '</span><span>' + esc(item.friendly) + sourceChips(item) + '</span></div>';
   }).join('');
+  el.scrollTop = el.scrollHeight;
 }
 
 function planRowsHtml() {
@@ -405,13 +439,13 @@ function careActionCard(care, index) {
     '<span>Every ' + esc(care.interval_months || 6) + ' months</span></div>' +
     '<div class="care-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.35-7-11a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 6.65-7 11-7 11Z"/><path d="M8.5 12h2l1-2.2 1.5 4.4 1-2.2h1.5"/></svg></div>' +
     '<h2>' + esc(titleCase(care.type).replaceAll('-', '‑')) + '</h2>' +
-    '<p>Your saved care schedule says this visit is due. Relage will start with ' + esc(care.provider) + '.' + address + '</p>' +
+    '<p>This visit is due. Relage will check ' + esc(care.provider) + ' first.' + address + '</p>' +
     '<ul class="promise-list" aria-label="What Relage will arrange">' +
-      '<li><span class="check-icon" aria-hidden="true">✓</span><span>An in-network ' + esc((profile.patient.preferred_times && profile.patient.preferred_times[0]) || 'appointment') + '</span></li>' +
+      '<li><span class="check-icon" aria-hidden="true">✓</span><span>In-network, ' + esc((profile.patient.preferred_times && profile.patient.preferred_times[0]) || 'flexible timing') + '</span></li>' +
       '<li><span class="check-icon" aria-hidden="true">✓</span><span>' + mobility + '</span></li>' +
     '</ul>' +
     '<button class="primary-button" type="button" data-coordinate-index="' + index + '" onclick="startCoordinate(' + index + ', this)">Coordinate this visit' + ICONS.arrow + '</button>' +
-    '<p class="consent-note"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Relage will hold options. You approve the full plan before anything gets booked.</p>' +
+    '<p class="consent-note"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Nothing is booked until you confirm.</p>' +
   '</article>';
 }
 
@@ -429,15 +463,21 @@ function renderHome() {
   cards.hidden = !idle || !dueEntries.length;
   document.getElementById('allSet').hidden = idle && dueEntries.length;
   document.getElementById('homeLead').textContent = !idle
-    ? 'Relage is handling the current care task.'
+    ? 'Coordination is in progress.'
     : dueEntries.length === 1
-      ? 'One care task needs your attention.'
+      ? 'One task is ready to review.'
       : dueEntries.length > 1
-        ? dueEntries.length + ' care tasks need your attention.'
-        : 'Your current care tasks are handled.';
+        ? dueEntries.length + ' tasks are ready to review.'
+        : 'Nothing needs your attention.';
   if (idle && dueEntries.length) {
-    cards.innerHTML = dueEntries.map(function (entry) { return careActionCard(entry.care, entry.index); }).join('');
-    requestAnimationFrame(initRevealAnimations);
+    const html = dueEntries.map(function (entry) { return careActionCard(entry.care, entry.index); }).join('');
+    if (cards.dataset.rendered !== html) {
+      cards.innerHTML = html;
+      cards.dataset.rendered = html;
+      requestAnimationFrame(initRevealAnimations);
+    }
+  } else {
+    cards.dataset.rendered = '';
   }
   renderPreferences();
 }
@@ -450,9 +490,9 @@ function renderPreferences() {
     ? titleCase(patient.mobility_needs.join(', ')) + ' access'
     : 'No mobility aid';
   document.getElementById('preferenceList').innerHTML =
-    '<div><span class="preference-icon" aria-hidden="true">AM</span><span><strong>' + esc(titleCase(time)) + '</strong><small>Your preferred time</small></span></div>' +
-    '<div><span class="preference-icon" aria-hidden="true">M</span><span><strong>' + esc(patient.insurance) + '</strong><small>In-network providers</small></span></div>' +
-    '<div><span class="preference-icon" aria-hidden="true">W</span><span><strong>' + esc(mobility) + '</strong><small>Transport requirement</small></span></div>';
+    '<div><span class="preference-icon" aria-hidden="true">AM</span><span><strong>' + esc(titleCase(time)) + '</strong><small>Preferred time</small></span></div>' +
+    '<div><span class="preference-icon" aria-hidden="true">M</span><span><strong>' + esc(patient.insurance) + '</strong><small>Coverage</small></span></div>' +
+    '<div><span class="preference-icon" aria-hidden="true">W</span><span><strong>' + esc(mobility) + '</strong><small>Ride access</small></span></div>';
   const upcoming = (profile.recurring_care || []).filter(function (care) {
     return monthsSince(care.last_visit) < (care.interval_months || 6);
   }).sort(function (a, b) { return nextDueDate(a) - nextDueDate(b); });
@@ -568,7 +608,7 @@ function loadDemoData(shouldScroll) {
     interval_months: 12,
     last_visit: '2026-03-10'
   });
-  showToast('Eleanor’s profile is loaded. Review it, then save.');
+  showToast('Eleanor’s profile is loaded. Review and save when ready.');
   if (shouldScroll) setTimeout(function () { scrollToSetup('patient'); }, 120);
 }
 
@@ -614,7 +654,7 @@ async function saveProfile() {
   };
   const button = document.getElementById('saveBtn');
   button.disabled = true;
-  button.textContent = 'Saving care profile...';
+  button.textContent = 'Saving...';
   try {
     const response = await fetch('/profile', {
       method: 'POST',
@@ -625,7 +665,7 @@ async function saveProfile() {
     profile = await response.json();
     localBubbles = [];
     lastStatus = '';
-    showToast('Care profile saved. Opening Today…');
+    showToast('Profile saved. Opening Today...');
     document.getElementById('saveNote').hidden = false;
     renderHome();
     renderDemoIdentity();
