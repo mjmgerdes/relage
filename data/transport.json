@@ -1,0 +1,23 @@
+[
+  {
+    "name": "Pine Ridge Rural Transit — Medical Access Van",
+    "type": "accessible_transport",
+    "walker_accommodation": true,
+    "wheelchair_accommodation": true,
+    "service_area_miles": 50,
+    "pickup_lead_minutes": 95,
+    "return_wait_minutes": 105,
+    "cost": "Free for Medicare riders (county medical transport program)"
+  },
+  {
+    "name": "Laurel County Volunteer Drivers",
+    "type": "volunteer_driver",
+    "walker_accommodation": true,
+    "wheelchair_accommodation": false,
+    "service_area_miles": 40,
+    "pickup_lead_minutes": 120,
+    "return_wait_minutes": 120,
+    "cost": "Donation-based",
+    "note": "Requires 48-hour advance booking"
+  }
+]

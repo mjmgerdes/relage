@@ -1,0 +1,30 @@
+{
+  "patient": {
+    "name": "Eleanor Brooks",
+    "age": 78,
+    "home_location": "Pine Ridge, Pennsylvania",
+    "insurance": "Medicare",
+    "mobility_needs": ["walker"],
+    "preferred_times": ["weekday mornings"],
+    "preferred_pharmacy": "Pine Ridge Pharmacy"
+  },
+  "caregiver": {
+    "name": "Sarah Brooks",
+    "relationship": "daughter",
+    "phone": "+1-555-0142",
+    "notes": "Often unavailable during weekdays"
+  },
+  "recurring_care": [
+    {
+      "type": "cardiology follow-up",
+      "provider": "Regional Heart Center",
+      "interval_months": 6,
+      "last_visit": "2026-02-08",
+      "source": "patient-entered recurring plan"
+    }
+  ],
+  "transport_preferences": {
+    "ask_sarah": { "attempts": 4, "accepted": 1, "declined": 3 },
+    "accessible_transport": { "attempts": 3, "accepted": 3 }
+  }
+}

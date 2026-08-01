@@ -1,0 +1,165 @@
+# RuralRelay
+
+## An on-device care coordination agent for older adults, powered by Gemma
+
+**Track: Agentic Care Copilots**
+
+---
+
+### The problem
+
+Eleanor is 78. She lives in rural Pennsylvania, uses a walker, and her
+cardiologist is 34 miles away. Her cardiology follow-up is due — and finding
+an appointment is only the beginning. Someone must check that the provider
+accepts Medicare, coordinate a time she can manage, find out whether her
+daughter Sarah can drive her, find walker-accessible transportation when
+Sarah can't, and make sure everyone remembers the plan.
+
+Today that "someone" is usually an overloaded family caregiver juggling all
+of it by phone and text. When coordination fails, the appointment is missed —
+not because care didn't exist, but because the patient couldn't get through
+the door. Transportation is one of the most commonly cited non-clinical
+barriers to care access in rural areas, and older adults with mobility needs
+are hit hardest.
+
+**Healthcare access is not whether a provider exists. It is whether the
+patient can actually get through the door.**
+
+### What RuralRelay does
+
+RuralRelay is a care-access orchestration agent. It turns a healthcare need
+into an appointment the patient can actually attend: it finds a feasible
+in-network appointment, tentatively holds it, coordinates transportation with
+the caregiver by SMS, interprets the reply, adapts when the caregiver is
+unavailable by finding accessible transport, and asks the patient to approve
+the complete appointment-and-ride plan before anything books. After
+confirmation, the care timeline updates and confirmations and reminders go
+out to both patient and caregiver.
+
+It is decision-support for **logistics only**. The "cardiology follow-up due"
+card exists because Eleanor entered a six-month recurring plan — RuralRelay
+never infers what medical care someone needs, never diagnoses, and never
+recommends treatment. All data is synthetic.
+
+### How Gemma is core
+
+All inference runs locally through Ollama (`gemma4:latest`). Eleanor's full
+care profile and all planning logic stay on-device; the only things that ever
+leave are the minimum fields needed for an approved action (Sarah receives an
+appointment time and place — never medical history, medications, or insurance
+details).
+
+Gemma is central in five places (`gemma.py`):
+
+1. **Onboarding interpretation.** Conversational answers become structured
+   preferences: "I don't like driving after dark and mornings are best for
+   me" → `preferred_times: mornings`, `transport_preference: daytime travel
+   only` — reviewable by the patient.
+2. **Action planning.** At each state, Gemma chooses the next tool
+   (provider search, availability check, caregiver outreach, transport
+   search) from the set of legal transitions, with a one-sentence rationale
+   shown in the agent activity feed.
+3. **Response interpretation.** Sarah's free-text reply — "I have work
+   meetings all day Tuesday, sorry," or "I could drive her there but not
+   home" — becomes structured availability (`can_drive`, `partial`,
+   `constraint`).
+4. **Constraint-aware replanning.** When Sarah declines, Gemma selects among
+   transport options given the walker requirement and 34-mile distance, and
+   explains the choice.
+5. **Patient explanation.** Before confirmation, Gemma explains in plain
+   language why the proposed plan fits Eleanor's stated preferences.
+
+### Architecture
+
+```
+On-device Gemma (Ollama, JSON-constrained)
+        ▼
+Care coordination state machine (FastAPI)
+  NEEDS_APPOINTMENT → APPOINTMENT_HELD → TRANSPORT_NEEDED
+  → CAREGIVER_CONTACTED → CAREGIVER_UNAVAILABLE → TRANSPORT_FOUND
+  → AWAITING_USER_CONFIRMATION → CONFIRMED
+        ▼
+Deterministic tools over synthetic datasets
+  search_providers · check_availability · hold_appointment · check_transport
+  reserve_transport · send_sms · create_calendar_event
+```
+
+Three engineering choices matter here:
+
+**The state machine is the spine, Gemma is the brain.** Every Gemma output is
+JSON-schema-constrained (Ollama `format: json`, temperature 0.1) and
+validated against the current state's set of legal tools. Invalid output
+falls back to deterministic logic, so the coordination loop can never stall
+or take an illegal action. This makes the agent feel robust rather than
+improvised: the LLM plans and interprets; the machine guarantees safety and
+progress.
+
+**The caregiver loop is a real webhook.** The SMS conversation runs through a
+`/caregiver-response` endpoint. In the demo UI, an embedded "Sarah's phone"
+simulator posts to it — which keeps the live demo deterministic and free of
+external dependencies — but the same endpoint accepts Twilio's form-encoded
+inbound webhook unchanged, and outbound messages route through real Twilio
+SMS when credentials are configured. The agent genuinely reacts to an
+external, asynchronous human reply mid-workflow.
+
+**Adaptation is transparent, not magical.** We do not claim to have trained a
+personalized model in a day. RuralRelay keeps a visible preference score —
+Sarah has accepted 1 of her last 4 ride requests, while accessible transport
+has worked 3 of 3 times — and adapts its coordination order accordingly:
+it still asks Sarah first (Eleanor's stored preference keeps the user in
+control) but lines up the accessible-transport fallback in advance. The
+activity feed shows this reasoning to the user.
+
+### The demo
+
+Five screens: **Profile** (prepopulated onboarding, plus a live "interpret my
+preference" Gemma box), **Today** (the due-care card), **Coordinate** (agent
+activity feed showing every Gemma plan and tool call), **Ride** (caregiver
+outreach → decline → accessible fallback → plan review), and **Care
+Calendar** (a chronological care timeline: 8:55 AM pickup, 10:30 AM
+appointment, 12:15 PM return pickup, and the next auto-coordinated follow-up
+window in February).
+
+The judge-facing moment: press "Coordinate appointment," watch Gemma plan
+tool calls live, reply as Sarah with a natural-language decline, and watch
+the agent interpret it, replan around a walker and 34 miles, and present a
+complete plan that Eleanor — always — confirms herself.
+
+### Challenges in the one-day sprint
+
+- **Reliability vs. improvisation.** Early on, letting the model drive
+  free-form broke the flow in confusing ways. Moving to an explicit state
+  machine with per-state allowed tools, JSON-constrained outputs, and
+  deterministic fallbacks made the demo dependable without making Gemma
+  decorative — it still makes every interpretive and planning decision.
+- **Latency.** A 9.6 GB local model takes seconds per call. We kept Gemma
+  calls to the five decision points, cached nothing patient-identifying, and
+  built the UI around a live activity feed so inference time reads as the
+  agent visibly working.
+- **Scope discipline.** The full vision includes preventive-care planning,
+  provider discovery, and post-discharge pharmacy pickup. We cut all of it
+  and built one complete loop for one synthetic patient — because a finished
+  story beats four half-built features.
+
+### Why these choices were right
+
+On-device Gemma is not a gimmick here: care logistics touch the most
+sensitive facts about a person's life — where they live, who cares for them,
+how they move, what care they receive. A cloud agent would leak all of that
+by design. RuralRelay's split — profile and planning local, minimum-necessary
+fields shared per approved action — is an architecture that only works with a
+capable local model, and Gemma 4's constrained-JSON planning and
+natural-language interpretation were strong enough to carry all five roles.
+
+### Roadmap
+
+The same planner-plus-state-machine engine extends directly: preventive and
+recurring-care planning, provider discovery, and post-discharge prescription
+pickup (medication extraction → pharmacy readiness → pickup coordination with
+the same caregiver/transport loop). Each is a new tool set behind the same
+Gemma planner and the same patient confirmation gate.
+
+---
+
+*Synthetic data only. Decision-support for care logistics — not diagnosis or
+treatment.*
