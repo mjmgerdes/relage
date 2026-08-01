@@ -293,7 +293,9 @@ function quick(t) { document.getElementById('smsInput').value = t; sendSms(); }
 
 let localBubbles = [];
 function addBubble(dir, text, who) {
-  localBubbles.push({ dir, text, who });
+  // Remember how many inbound messages existed when Sarah replied so the
+  // conversation renders in chronological order.
+  localBubbles.push({ dir, text, who, afterInbound: (state?.sms_outbox || []).length });
   renderPhone();
 }
 
@@ -301,7 +303,9 @@ function renderPhone() {
   const el = document.getElementById('phoneMsgs');
   const inbound = (state?.sms_outbox || []).map(m =>
     ({ dir: 'in', text: m.body, who: 'RuralRelay → ' + m.to + (m.via === 'twilio' ? ' (Twilio)' : '') }));
-  const all = [...inbound, ...localBubbles];
+  const all = [...inbound];
+  // Insert Sarah's replies at the position they were sent (later inserts shift earlier ones).
+  [...localBubbles].reverse().forEach(b => all.splice(b.afterInbound, 0, b));
   el.innerHTML = all.map(b =>
     `<div class="bubble ${b.dir}"><div class="who">${b.who}</div>${b.text}</div>`).join('');
   el.scrollTop = el.scrollHeight;
